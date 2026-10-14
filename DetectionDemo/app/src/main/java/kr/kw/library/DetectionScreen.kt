@@ -1,5 +1,6 @@
 package kr.kw.library
 
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,7 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -79,7 +82,7 @@ fun DetectionScreen(
     }
 
     Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -89,7 +92,7 @@ fun DetectionScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         if (!modeOn) {
-            Button(onClick = { viewModel.enableDetectionMode() }, colors = DarkButton, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            Button(onClick = { viewModel.enableDetectionMode() }, colors = DarkButton, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                 Text("감지 모드 켜기 — setDetectionModeOn() (Settings 권한 요청)")
             }
         }
@@ -102,24 +105,24 @@ fun DetectionScreen(
         // ── 회전 · 헤드 틸트 ──
         SectionTitle("회전 · 헤드 틸트")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = { viewModel.turn(30) }, colors = DarkButton, modifier = Modifier.weight(1f).height(56.dp)) { Text("왼쪽으로 30° — turnBy(30)") }
-            Button(onClick = { viewModel.turn(-30) }, colors = DarkButton, modifier = Modifier.weight(1f).height(56.dp)) { Text("오른쪽으로 30° — turnBy(-30)") }
+            Button(onClick = { viewModel.turn(30) }, colors = DarkButton, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) { Text("왼쪽으로 30° — turnBy(30)") }
+            Button(onClick = { viewModel.turn(-30) }, colors = DarkButton, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) { Text("오른쪽으로 30° — turnBy(-30)") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = { viewModel.tiltBy(10) }, colors = DarkButton, modifier = Modifier.weight(1f).height(56.dp)) { Text("고개 올리기 +10° — tiltAngle()") }
-            Button(onClick = { viewModel.tiltBy(-10) }, colors = DarkButton, modifier = Modifier.weight(1f).height(56.dp)) { Text("고개 내리기 −10° — tiltAngle()") }
+            Button(onClick = { viewModel.tiltBy(10) }, colors = DarkButton, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) { Text("고개 올리기 +10° — tiltAngle()") }
+            Button(onClick = { viewModel.tiltBy(-10) }, colors = DarkButton, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) { Text("고개 내리기 −10° — tiltAngle()") }
         }
         ValueLine("머리 각도", "$tilt°  (아래 −30 ~ 위 +50)")
 
         // ── 비전 기반 얼굴 검출 (CameraX + ML Kit) ──
         SectionTitle("비전 기반 얼굴 검출")
-        Button(onClick = { showCamera = true }, colors = DarkButton, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+        Button(onClick = { showCamera = true }, colors = DarkButton, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
             Text("카메라 켜기 — ML Kit 얼굴 검출")
         }
 
         // ── 음성 인식 (STT) ──
         SectionTitle("음성 인식 (STT)")
-        Button(onClick = { viewModel.greet() }, colors = DarkButton, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+        Button(onClick = { viewModel.greet() }, colors = DarkButton, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
             Text("말 걸기 — speak() → wakeup()")
         }
         if (heard.isNotEmpty()) ValueLine("들은 말", heard)
