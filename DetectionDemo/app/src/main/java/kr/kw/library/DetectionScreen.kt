@@ -67,6 +67,13 @@ fun DetectionScreen(
         }
     }
 
+    // ── 참참참 게임: 켜면 전체화면 ──
+    var showCham by remember { mutableStateOf(false) }
+    if (showCham) {
+        ChamScreen(onExit = { showCham = false }, modifier = modifier.fillMaxSize())
+        return
+    }
+
     // ── 비전 기반 얼굴 검출: 켜면 전체화면 프리뷰, 우측 상단 닫기로 돌아온다 ──
     var showCamera by remember { mutableStateOf(false) }
     if (showCamera) {
@@ -118,6 +125,9 @@ fun DetectionScreen(
         SectionTitle("비전 기반 얼굴 검출")
         Button(onClick = { showCamera = true }, colors = DarkButton, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
             Text("카메라 켜기 — ML Kit 얼굴 검출")
+        }
+        Button(onClick = { showCham = true }, colors = DarkButton, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+            Text("참참참 게임 — 고개 방향 판정 (멀티플레이)")
         }
 
         // ── 음성 인식 (STT) ──

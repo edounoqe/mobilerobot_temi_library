@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,9 +56,9 @@ import java.util.concurrent.Executors
 private const val TAG = "FaceDetect"
 
 // 고개 방향 판정 — temi에서 실제로 돌려보고 반대로 나오면 부호를 -1f 로 바꾼다
-private const val YAW_SIGN = 1f      // headEulerAngleY : 좌우
-private const val PITCH_SIGN = 1f    // headEulerAngleX : 위아래
-private const val DIR_THRESHOLD = 20f   // 이 각도(°)를 넘으면 해당 방향으로 판정
+internal const val YAW_SIGN = 1f      // headEulerAngleY : 좌우
+internal const val PITCH_SIGN = 1f    // headEulerAngleX : 위아래
+internal const val DIR_THRESHOLD = 20f   // 이 각도(°)를 넘으면 해당 방향으로 판정
 
 /** Yaw/Pitch → "왼쪽·위" 같은 방향 문자열 */
 private fun headDirection(face: Face): String {
@@ -73,7 +74,12 @@ private fun Float?.pct() = if (this == null) "-" else "${(this * 100).toInt()}%"
 /** 카메라 프레임 → ML Kit 얼굴 검출 → 바운딩 박스와 결과를 프리뷰 위에 그린다 */
 @OptIn(ExperimentalGetImage::class)   // imageProxy.image 는 CameraX 실험 API — 명시적으로 허용
 @Composable
-fun FaceDetectionView(modifier: Modifier = Modifier) {
+fun FaceDetectionView(
+    modifier: Modifier = Modifier,
+    showInfo: Boolean = true,             // 각도·검출 정보 글자 표시 (게임 화면에서는 끈다)
+    onFaces: (List<Face>) -> Unit = {},   // 프레임마다 검출 결과 전달 (참참참 판정용)
+) {
+    val currentOnFaces by rememberUpdatedState(onFaces)
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -151,6 +157,7 @@ fun FaceDetectionView(modifier: Modifier = Modifier) {
                                 .addOnSuccessListener { found ->
                                     val ms = SystemClock.elapsedRealtime() - t0
                                     faces = found; faceCount = found.size; lastMs = ms; imgW = upW; imgH = upH
+                                    currentOnFaces(found)
                                 }
                                 .addOnFailureListener { e -> Log.e(TAG, "detect failed", e) }
                                 .addOnCompleteListener { imageProxy.close() }   // 닫아야 다음 프레임이 온다
@@ -186,7 +193,7 @@ fun FaceDetectionView(modifier: Modifier = Modifier) {
         }
 
         // 고개 방향 — 화면 위쪽에 크게 표시
-        faces.firstOrNull()?.let { f ->
+        if (showInfo) faces.firstOrNull()?.let { f ->
             Column(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -216,7 +223,7 @@ fun FaceDetectionView(modifier: Modifier = Modifier) {
         }
 
         // 결과 — 프리뷰 위에 반투명 검정 띠 + 흰 글자로 띄운다
-        Text(
+        if (showInfo) Text(
             "얼굴 $faceCount 개  ·  처리 ${lastMs}ms" +
                 (faces.firstOrNull()?.let { "  ·  첫 얼굴 ${it.boundingBox.width()}×${it.boundingBox.height()}px" } ?: ""),
             style = MaterialTheme.typography.headlineSmall,

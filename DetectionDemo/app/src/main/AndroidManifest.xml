@@ -5,6 +5,8 @@
     <!-- 안드로이드 권한 선언 — 앱이 태블릿 카메라를 쓰겠다고 시스템에 알린다 (얼굴 검출용 CameraX).
          Android 6 부터는 여기 적는 것만으론 부족하고, 실행 중에 사용자 승인 창을 한 번 더 띄워야 한다 (FaceDetectionView 참고) -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 참참참 멀티플레이 — Firebase Realtime Database 통신 -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- 카메라가 없는 기기에도 설치는 되게 — required="true" 면 스토어·설치 단계에서 카메라 없는 기기를 걸러낸다 -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 

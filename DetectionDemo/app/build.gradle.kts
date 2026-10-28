@@ -3,6 +3,13 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Firebase 설정 — DetectionDemo/local.properties 에서 읽는다 (git 에 올리지 않음). 비어 있으면 '혼자 테스트(봇)' 모드만 동작
+val localProps = java.util.Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun localProp(key: String): String = localProps.getProperty(key, "")
+
 android {
     namespace = "kr.kw.library"
     compileSdk {
@@ -17,6 +24,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "FIREBASE_DB_URL", "\"${localProp("firebase.dbUrl")}\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${localProp("firebase.apiKey")}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${localProp("firebase.appId")}\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${localProp("firebase.projectId")}\"")
     }
 
     buildTypes {
@@ -32,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -52,5 +65,7 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.face.detection)
     implementation(libs.temi.sdk)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.database)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
