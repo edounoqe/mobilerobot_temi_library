@@ -54,6 +54,22 @@ import java.util.concurrent.Executors
 
 private const val TAG = "FaceDetect"
 
+// 고개 방향 판정 — temi에서 실제로 돌려보고 반대로 나오면 부호를 -1f 로 바꾼다
+private const val YAW_SIGN = 1f      // headEulerAngleY : 좌우
+private const val PITCH_SIGN = 1f    // headEulerAngleX : 위아래
+private const val DIR_THRESHOLD = 20f   // 이 각도(°)를 넘으면 해당 방향으로 판정
+
+/** Yaw/Pitch → "왼쪽·위" 같은 방향 문자열 */
+private fun headDirection(face: Face): String {
+    val yaw = face.headEulerAngleY * YAW_SIGN
+    val pitch = face.headEulerAngleX * PITCH_SIGN
+    val lr = when { yaw > DIR_THRESHOLD -> "왼쪽"; yaw < -DIR_THRESHOLD -> "오른쪽"; else -> "" }
+    val ud = when { pitch > DIR_THRESHOLD -> "위"; pitch < -DIR_THRESHOLD -> "아래"; else -> "" }
+    return listOf(lr, ud).filter { it.isNotEmpty() }.joinToString("·").ifEmpty { "정면" }
+}
+
+private fun Float?.pct() = if (this == null) "-" else "${(this * 100).toInt()}%"
+
 /** 카메라 프레임 → ML Kit 얼굴 검출 → 바운딩 박스와 결과를 프리뷰 위에 그린다 */
 @OptIn(ExperimentalGetImage::class)   // imageProxy.image 는 CameraX 실험 API — 명시적으로 허용
 @Composable
@@ -87,6 +103,8 @@ fun FaceDetectionView(modifier: Modifier = Modifier) {
         FaceDetection.getClient(
             FaceDetectorOptions.Builder()
                 .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)   // 눈 뜸·웃음 확률
+                .enableTracking()                                                    // 같은 얼굴에 ID 유지
                 .build()
         )
     }
@@ -163,6 +181,36 @@ fun FaceDetectionView(modifier: Modifier = Modifier) {
                     topLeft = Offset(left, top),
                     size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
                     style = Stroke(width = 6f),
+                )
+            }
+        }
+
+        // 고개 방향 — 화면 위쪽에 크게 표시
+        faces.firstOrNull()?.let { f ->
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.65f))
+                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "방향: ${headDirection(f)}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF00E676),
+                )
+                Text(
+                    "Yaw(좌우) %.1f°   Pitch(위아래) %.1f°   Roll(갸웃) %.1f°".format(
+                        f.headEulerAngleY, f.headEulerAngleX, f.headEulerAngleZ),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                )
+                Text(
+                    "왼눈 ${f.leftEyeOpenProbability.pct()}   오른눈 ${f.rightEyeOpenProbability.pct()}   웃음 ${f.smilingProbability.pct()}   ID ${f.trackingId ?: "-"}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
                 )
             }
         }
