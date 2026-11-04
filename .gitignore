@@ -1,0 +1,17 @@
+# Android Studio and local SDK configuration
+.idea/
+**/.idea/
+local.properties
+**/local.properties
+
+# Gradle caches and generated build outputs
+.gradle/
+**/.gradle/
+.kotlin/
+**/.kotlin/
+build/
+**/build/
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
