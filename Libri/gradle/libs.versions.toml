@@ -11,7 +11,8 @@ composeBom = "2026.02.01"
 temiSdk = "1.138.0"
 camerax = "1.4.2"
 mlkitFace = "16.1.7"
-firebaseBom = "34.0.0"
+firebaseBom = "34.19.0" # Preserve Android 6 / API 23 support for TEMI.
+googleServices = "4.5.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -41,11 +42,12 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 # ML Kit 얼굴 검출 — bundled (모델이 APK 에 포함, Google Play 서비스 불필요, API 23+)
 mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFace" }
-# Firebase Realtime Database — 참참참 멀티플레이 (google-services 플러그인 없이 코드에서 초기화)
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 

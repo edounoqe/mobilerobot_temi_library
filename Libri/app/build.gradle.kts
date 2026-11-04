@@ -1,10 +1,13 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 // Firebase 설정 — libri/local.properties 에서 읽는다 (git 에 올리지 않음). 비어 있으면 '혼자 테스트(봇)' 모드만 동작
-val localProps = java.util.Properties().apply {
+val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
@@ -49,6 +52,9 @@ android {
 }
 
 dependencies {
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.database)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -65,7 +71,5 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.face.detection)
     implementation(libs.temi.sdk)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.database)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
