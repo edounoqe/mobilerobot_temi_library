@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 안드로이드 권한 선언 — 앱이 태블릿 카메라를 쓰겠다고 시스템에 알린다 (얼굴 검출용 CameraX).
+         Android 6 부터는 여기 적는 것만으론 부족하고, 실행 중에 사용자 승인 창을 한 번 더 띄워야 한다 (FaceDetectionView 참고) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 카메라가 없는 기기에도 설치는 되게 — required="true" 면 스토어·설치 단계에서 카메라 없는 기기를 걸러낸다 -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.DetectionDemo">
+
+        <meta-data
+            android:name="com.robotemi.sdk.metadata.SKILL"
+            android:value="@string/app_name" />
+
+        <!-- temi 자체 권한 선언 — setDetectionModeOn() 에 Settings 권한이 필요하다 (실행 중 사용자 승인도 받는다) -->
+        <meta-data
+            android:name="@string/metadata_permissions"
+            android:value="com.robotemi.permission.settings" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.DetectionDemo"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
