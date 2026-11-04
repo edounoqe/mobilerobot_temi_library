@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "481977625278",
+    "project_id": "mobilerobot-temi-library",
+    "storage_bucket": "mobilerobot-temi-library.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481977625278:android:986166a2cf3c94c6e40cef",
+        "android_client_info": {
+          "package_name": "kr.kw.libri"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwPZUkk7nSZQWb4H5cShJ1LJVIeyH1bWI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

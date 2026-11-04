@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- 안드로이드 권한 선언 — 앱이 태블릿 카메라를 쓰겠다고 시스템에 알린다 (얼굴 검출용 CameraX).
          Android 6 부터는 여기 적는 것만으론 부족하고, 실행 중에 사용자 승인 창을 한 번 더 띄워야 한다 (FaceDetectionView 참고) -->
     <uses-permission android:name="android.permission.CAMERA" />
