@@ -91,10 +91,12 @@
 
 | 기능 | 상태 |
 |---|---|
-| 고개 방향 인식 (ML Kit) | ✅ 구현 (`DetectionDemo`) |
-| 참참참 (봇 테스트 · Firebase 멀티플레이) | 🛠️ 구현 완료, 기기 테스트 중 (`Libri`) |
-| 네컷 사진 · 프레임 · QR | ⏳ 예정 |
-| 스트레칭 · 눈 휴식 | ⏳ 예정 |
+| 고개 방향 인식 (ML Kit) | ✅ 구현 (`common/FaceDetectionView`) |
+| 참참참 (봇 테스트 · Firebase 멀티플레이) | 🛠️ 구현 완료, 기기 테스트 중 (`chamchamcham`) |
+| 홈 화면 · 기능 선택 메뉴 | ✅ 구현 (`HomeScreen`) |
+| 네컷 사진 · 프레임 · QR (Supabase) | ⏳ 예정 (`photobooth` — 화면 자리만) |
+| 눈 운동 | ⏳ 예정 (`eye_work` — 화면 자리만) |
+| 스트레칭 가이드 | ⏳ 예정 (`stretch` — 화면 자리만) |
 | 만족도 조사 | ⏳ 예정 |
 
 ---
@@ -106,11 +108,50 @@
 | 로봇 | temi SDK 1.138.0 (이동·회전·TTS·사람 감지) |
 | 앱 | Kotlin, Jetpack Compose, minSdk 23 (temi V1·V2 호환) |
 | 카메라 · 인식 | CameraX, ML Kit 얼굴 검출 (고개 좌우·위아래 각도, 눈 뜸·웃음 확률) |
-| 멀티플레이 · 저장 | Firebase Realtime Database (참참참), Cloud Storage (사진 QR, 예정) |
+| 멀티플레이 | Firebase Realtime Database (참참참 실시간 대결) |
+| 사진 저장 · 관리 | **Supabase** — Storage(사진 파일) + Postgres DB(사진 메타데이터·만료 관리), 다운로드 QR (예정) |
 
 ---
 
-## 8. 실행 방법 (Libri 앱)
+## 8. 폴더 구조
+
+기능은 **하나의 앱** 안에서 기능별 패키지로 나눈다. 여러 기능이 공유하는 카메라·인식 코드는 `common/` 에만 둔다.
+
+```
+Libri/app/src/main/java/kr/kw/libri/
+├── MainActivity.kt          # temi 연결 + 홈 ↔ 기능 화면 전환
+├── HomeScreen.kt            # 기능 선택 메뉴
+│
+├── common/                  # 여러 기능이 공유하는 코드
+│   └── FaceDetectionView.kt     # 카메라 + ML Kit 얼굴·고개 인식 (YAW_SIGN·DIR_THRESHOLD)
+│
+├── photobooth/              # 📸 네컷 사진        (예정 — Supabase 업로드·QR)
+│   └── PhotoBoothScreen.kt
+│
+├── chamchamcham/            # ✌️ 참참참          (구현 완료)
+│   ├── ChamScreen.kt            # 대기실 · 공격/수비 화면
+│   ├── ChamViewModel.kt         # 라운드 진행 · "참" 소리 · 수비 판정
+│   ├── ChamModels.kt            # 규칙 · 박자 타이밍 · 손 애니메이션 계산
+│   ├── ChamServers.kt           # Firebase 서버 / 봇 테스트 서버
+│   └── ChamHand.kt              # 손 그리기 · 손목 회전
+│
+├── eye_work/                # 👀 눈 운동          (예정)
+│   └── EyeWorkScreen.kt
+│
+├── stretch/                 # 🤸 스트레칭 가이드   (예정)
+│   └── StretchScreen.kt
+│
+└── ui/theme/                # 공용 테마
+```
+
+**원칙**
+- 각 기능은 `{기능}Screen` + `{기능}ViewModel` 한 쌍으로 독립 — 서로 import 하지 않는다.
+- 공유되는 건 `common/` 에만 (얼굴 인식·카메라·공용 유틸).
+- 화면 전환은 `MainActivity` 의 `Screen` enum + `when` 분기. 기능이 더 늘면 Compose Navigation 으로 승격.
+
+---
+
+## 9. 실행 방법 (Libri 앱)
 
 1. Android Studio → **File → Open → `C:\temi\Libri`**
 2. 기기(temi / 폰 / AVD) 선택 → **Run**
@@ -134,18 +175,24 @@ firebase.projectId=<project_id>
 </details>
 
 <details>
-<summary><b>참참참 코드 구조</b></summary>
+<summary><b>Supabase 설정 (네컷 사진 — 예정)</b></summary>
 
-| 파일 | 역할 |
-|---|---|
-| `ChamModels.kt` | 규칙 · 박자 타이밍 · 손 애니메이션 계산 |
-| `ChamServers.kt` | Firebase 서버 / 봇 테스트 서버 |
-| `ChamViewModel.kt` | 라운드 진행 · "참" 소리 · 수비 판정 |
-| `ChamHand.kt` | 손 그리기 · 손목 회전 |
-| `ChamScreen.kt` | 대기실 · 공격/수비 화면 |
-| `FaceDetectionView.kt` | 카메라 + ML Kit 얼굴 검출 (DetectionDemo 에서 가져옴) |
+사진 파일은 Supabase **Storage** 버킷에, 사진 메타데이터(촬영 시각·만료 시각·다운로드 경로)는 Supabase **Postgres DB** 로 관리한다. 만료된 사진은 주기적으로 정리해 temi·서버에 사진을 남기지 않는다.
 
-조정: 고개 방향이 반대로 판정되면 `FaceDetectionView.kt` 의 `YAW_SIGN = -1f`, 판정 각도는 `DIR_THRESHOLD` (기본 20°)
+1. [supabase.com](https://supabase.com) 프로젝트 생성 → Storage 버킷(예: `photos`) + 사진 메타 테이블 생성
+2. `Libri/local.properties` 에 추가 — git 에 올라가지 않습니다
+
+```properties
+supabase.url=https://<프로젝트>.supabase.co
+supabase.anonKey=<Project API anon key>
+supabase.bucket=photos
+```
+</details>
+
+<details>
+<summary><b>참참참 고개 방향 조정</b></summary>
+
+고개 방향이 반대로 판정되면 `common/FaceDetectionView.kt` 의 `YAW_SIGN = -1f` 로, 판정 각도는 `DIR_THRESHOLD` (기본 20°) 로 조정한다.
 </details>
 
 ---

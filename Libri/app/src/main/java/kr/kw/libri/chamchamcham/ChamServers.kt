@@ -1,5 +1,6 @@
-package kr.kw.libri
+package kr.kw.libri.chamchamcham
 
+import kr.kw.libri.BuildConfig
 import android.app.Application
 import android.util.Log
 import com.google.firebase.FirebaseApp
