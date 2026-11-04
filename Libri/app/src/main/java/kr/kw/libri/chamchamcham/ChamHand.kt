@@ -1,4 +1,4 @@
-package kr.kw.libri
+package kr.kw.libri.chamchamcham
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable

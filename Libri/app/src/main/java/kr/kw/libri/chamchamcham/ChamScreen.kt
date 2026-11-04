@@ -1,5 +1,6 @@
-package kr.kw.libri
+package kr.kw.libri.chamchamcham
 
+import kr.kw.libri.common.FaceDetectionView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

@@ -1,4 +1,4 @@
-package kr.kw.libri
+package kr.kw.libri.common
 
 import android.Manifest
 import android.content.pm.PackageManager
