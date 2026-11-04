@@ -95,7 +95,7 @@
 | 참참참 (봇 테스트 · Firebase 멀티플레이) | 🛠️ 구현 완료, 기기 테스트 중 (`chamchamcham`) |
 | 홈 화면 · 기능 선택 메뉴 | ✅ 구현 (`HomeScreen`) |
 | 네컷 사진 · 프레임 · QR (Supabase) | ⏳ 예정 (`photobooth` — 화면 자리만) |
-| 눈 운동 | ⏳ 예정 (`eye_work` — 화면 자리만) |
+| 눈 운동 (가운데 점 보며 고개 돌리기) | ✅ 구현 (`eye_work`) |
 | 스트레칭 가이드 | ⏳ 예정 (`stretch` — 화면 자리만) |
 | 만족도 조사 | ⏳ 예정 |
 
@@ -135,8 +135,9 @@ Libri/app/src/main/java/kr/kw/libri/
 │   ├── ChamServers.kt           # Firebase 서버 / 봇 테스트 서버
 │   └── ChamHand.kt              # 손 그리기 · 손목 회전
 │
-├── eye_work/                # 👀 눈 운동          (예정)
-│   └── EyeWorkScreen.kt
+├── eye_work/                # 👀 눈 운동          (구현 완료)
+│   ├── EyeWorkScreen.kt         # 가운데 점 + 안내 + 완료 UI
+│   └── EyeWorkViewModel.kt      # 고개 각도 판정 · 단계 진행
 │
 ├── stretch/                 # 🤸 스트레칭 가이드   (예정)
 │   └── StretchScreen.kt
