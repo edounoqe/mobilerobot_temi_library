@@ -7,7 +7,10 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- 멀티플레이 — Firebase Realtime Database 통신 -->
     <uses-permission android:name="android.permission.INTERNET" />
-
+    <!-- 도서관 네컷 사진 촬영 (CameraX) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Supabase 클라우드 사진 업로드 및 QR 발급용 인터넷 통신 -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -27,8 +30,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Libri"
-            android:screenOrientation="unspecified">
+            android:theme="@style/Theme.Libri">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

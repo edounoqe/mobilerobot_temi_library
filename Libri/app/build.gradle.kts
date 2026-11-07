@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 // Firebase 설정 — libri/local.properties 에서 읽는다 (git 에 올리지 않음). 비어 있으면 '혼자 테스트(봇)' 모드만 동작
@@ -71,5 +72,23 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.face.detection)
     implementation(libs.temi.sdk)
+
+    // 네컷 사진 촬영, QR 생성 및 Supabase 연동
+    // 1. CameraX (사진 촬영)
+    val cameraxVersion = "1.4.0"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // 2. QR 코드 생성 (ZXing)
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
+    // 3. Supabase 연동 (Storage 및 Database)
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.6.1"))
+    implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.ktor:ktor-client-android:2.3.12")
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
