@@ -31,12 +31,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kr.kw.libri.common.BookDoodle
-import kr.kw.libri.common.EyesDoodle
 import kr.kw.libri.common.HandDoodle
 import kr.kw.libri.common.LibriColors
 import kr.kw.libri.common.LibriScreen
 import kr.kw.libri.common.LibriTag
 import kr.kw.libri.common.NoteText
+import kr.kw.libri.common.OmokDoodle
 import kr.kw.libri.common.PhotoDoodle
 import kr.kw.libri.common.SketchSurface
 import kr.kw.libri.common.Squiggle
@@ -59,7 +59,7 @@ private class Feature(
 private val FEATURES = listOf(
     // 설명은 폰 화면에서도 한 줄에 들어오게 짧게. 아직 준비 중인 기능은 맨 뒤에
     Feature(Screen.CHAM, "참참참", "손끝을 피해 고개를 휙!", LibriColors.Coral, "둘이서 · 혼자서") { HandDoodle(it) },
-    Feature(Screen.EYE, "눈 운동", "점을 보며 눈을 쉬어 가요", LibriColors.Mint, "약 1분") { EyesDoodle(it) },
+    Feature(Screen.OMOK, "오목", "다섯 알을 먼저 이어 보세요", LibriColors.Mint, "둘이서 · 랭킹") { OmokDoodle(it) },
     Feature(Screen.STRETCH, "스트레칭", "책장 벽을 몸으로 통과해요", LibriColors.Yellow, "약 1분") { StretchDoodle(it) },
     Feature(Screen.PHOTO, "네컷 사진", "사진을 찍고 QR 로 받아 가요", LibriColors.Sky, "준비 중", ready = false) { PhotoDoodle(it) },
 )

@@ -206,10 +206,12 @@ class StretchEngine(val course: StretchCourse) {
             val hold = if (w.activeMs > 0f) (w.holdMs / w.activeMs).coerceIn(0f, 1f) else 0f
             gained = (grade.base * mult + HOLD_BONUS * hold).roundToInt()
             score += gained
-            // 통과 직후 잠깐은 구멍 모양을 유지해 깔끔하게 빠져나가게 한다
-            passedPose = w.pose
-            snapPose = w.pose
-            snapHoldUntilMs = timeMs + SNAP_HOLD_MS
+            // 통과 직후 잠깐은 구멍 모양을 유지해 깔끔하게 빠져나가게 한다 (도형 구멍은 정해진 자세가 없으니 그대로 둔다)
+            if (w.pose.shape == null) {
+                passedPose = w.pose
+                snapPose = w.pose
+                snapHoldUntilMs = timeMs + SNAP_HOLD_MS
+            }
         }
         events += StretchEvent.Judged(w.index, grade, gained, combo)
 
@@ -230,7 +232,7 @@ class StretchEngine(val course: StretchCourse) {
         } else {
             passedPose = null
             snapPose = t?.pose
-            goal = if (t != null && ahead <= SNAP_DIST && judgeFit >= GOOD_FIT) {
+            goal = if (t != null && t.pose.shape == null && ahead <= SNAP_DIST && judgeFit >= GOOD_FIT) {
                 SNAP_MAX * (1f - (ahead / SNAP_DIST).coerceIn(0f, 1f))
             } else 0f
         }

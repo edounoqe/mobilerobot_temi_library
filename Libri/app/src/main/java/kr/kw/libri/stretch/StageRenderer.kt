@@ -6,7 +6,9 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
@@ -168,6 +170,16 @@ internal class FigurePainter(
     }
 }
 
+/** 도형 구멍의 윤곽 — ox: 가운데 x, oy: 바닥 y, s: 몸통 길이 1 의 픽셀 수 */
+internal fun shapePath(shape: HoleShape, ox: Float, oy: Float, s: Float): Path = Path().apply {
+    for (i in 0 until shape.count) {
+        val x = ox + shape.pts[2 * i] * s
+        val y = oy - shape.pts[2 * i + 1] * s
+        if (i == 0) moveTo(x, y) else lineTo(x, y)
+    }
+    close()
+}
+
 /** 벽 하나의 미리 그려 둔 그림 — 프레임마다 책을 다시 그리지 않고 이 그림을 크기만 바꿔 찍는다 */
 private class WallArt(
     val face: ImageBitmap,      // 책장 벽 + 구멍
@@ -237,15 +249,29 @@ internal class StageRenderer {
         val (face, facePx) = wallBitmap(px)
         paintInto(face) {
             paintBookcase(Random(index * 7919 + 17), size.width, size.height, facePx, WOOD_FRAMES[index.mod(WOOD_FRAMES.size)], rows = 6)
-            val p = FigurePainter(this, size.width / 2f, size.height, facePx)
-            p.silhouette(f, HOLE_MARGIN + RIM, LibriColors.Ink)                // 구멍 둘레의 굵은 연필 선
-            p.silhouette(f, HOLE_MARGIN, Color.Black, BlendMode.Clear)       // 구멍을 뚫는다
+            val shape = pose.shape
+            if (shape != null) {
+                val hole = shapePath(shape, size.width / 2f, size.height, facePx)
+                drawPath(hole, LibriColors.Ink, style = Stroke(2f * RIM * facePx, join = StrokeJoin.Round))
+                drawPath(hole, Color.Black, blendMode = BlendMode.Clear)
+            } else {
+                val p = FigurePainter(this, size.width / 2f, size.height, facePx)
+                p.silhouette(f, HOLE_MARGIN + RIM, LibriColors.Ink)                // 구멍 둘레의 굵은 연필 선
+                p.silhouette(f, HOLE_MARGIN, Color.Black, BlendMode.Clear)       // 구멍을 뚫는다
+            }
         }
         val (guide, guidePx) = wallBitmap(px * 0.5f)
         paintInto(guide) {
-            val p = FigurePainter(this, size.width / 2f, size.height, guidePx)
-            p.silhouette(f, HOLE_MARGIN + RIM, GUIDE)
-            p.silhouette(f, HOLE_MARGIN, GUIDE.copy(alpha = 0.16f), BlendMode.Src)   // 안쪽은 옅게
+            val shape = pose.shape
+            if (shape != null) {
+                val hole = shapePath(shape, size.width / 2f, size.height, guidePx)
+                drawPath(hole, GUIDE.copy(alpha = 0.16f))
+                drawPath(hole, GUIDE, style = Stroke(RIM * guidePx, join = StrokeJoin.Round))
+            } else {
+                val p = FigurePainter(this, size.width / 2f, size.height, guidePx)
+                p.silhouette(f, HOLE_MARGIN + RIM, GUIDE)
+                p.silhouette(f, HOLE_MARGIN, GUIDE.copy(alpha = 0.16f), BlendMode.Src)   // 안쪽은 옅게
+            }
         }
         return WallArt(face, guide, facePx, guidePx)
     }
