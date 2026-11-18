@@ -4,8 +4,9 @@ import kotlin.math.abs
 
 /**
  * 벽 하나에 뚫린 구멍 = 스트레칭 동작 하나.
- *  pose    : 목표 자세
+ *  pose    : 목표 자세 (도형 구멍이면 그 구멍을 넓게 채우는 예시 자세 — 튜토리얼과 채움의 기준으로 쓴다)
  *  weights : 뼈대별 판정 가중치 (0 이면 판정하지 않는다)
+ *  shape   : 도형 구멍 (크리에이티브 코스). 있으면 자세가 아니라 '구멍에 몸이 들어갔는지' 로 판정한다
  */
 class StretchPose(
     val id: String,
@@ -13,6 +14,7 @@ class StretchPose(
     val cue: String,
     val pose: BodyPose,
     val weights: FloatArray,
+    val shape: HoleShape? = null,
 ) {
     /**
      * 사용자 자세가 목표와 얼마나 맞는지 0~1.
@@ -20,6 +22,7 @@ class StretchPose(
      * @param boneOut     뼈대별 점수를 받아 갈 배열 (판정하지 않는 뼈는 -1)
      */
     fun fit(player: BodyPose, legsTracked: Boolean, boneOut: FloatArray? = null): Float {
+        if (shape != null) return shape.fit(player, pose, legsTracked, boneOut)
         var sum = 0f
         var wsum = 0f
         var worst = 1f
@@ -66,11 +69,11 @@ class StretchCourse(
  * (180 을 넘으면 머리 위를 지나 반대쪽으로, 음수면 몸 안쪽으로)
  * 몸을 기울이는 동작(lean)은 팔도 몸통과 함께 기운다.
  */
-private class Arm(val upper: Float, val fore: Float)
+internal class Arm(val upper: Float, val fore: Float)
 
 private val ON_HIP = Arm(38f, -40f)   // 손 허리
 
-private fun make(
+internal fun make(
     id: String,
     name: String,
     cue: String,
@@ -80,6 +83,7 @@ private fun make(
     neckTilt: Float = 0f,      // 몸통 기준 고개 기울기
     legSpread: Float = 0f,     // 다리 벌림
     focus: Map<Bone, Float> = emptyMap(),   // 이 동작에서 가중치를 바꿀 뼈 (목·옆구리처럼 핵심인 부위)
+    shape: HoleShape? = null,               // 도형 구멍 (크리에이티브 코스)
 ): StretchPose {
     val p = BodyPose()
     p[Bone.SPINE] = lean
@@ -93,7 +97,7 @@ private fun make(
     p[Bone.R_THIGH] = 180f - legSpread
     p[Bone.R_SHIN] = 180f - legSpread
     val weights = FloatArray(BONE_COUNT) { focus[BONES[it]] ?: BONES[it].weight }
-    return StretchPose(id, name, cue, p, weights)
+    return StretchPose(id, name, cue, p, weights, shape)
 }
 
 object StretchPoses {
@@ -175,5 +179,11 @@ object StretchCourses {
         ),
         firstIntervalMs = 6000f, lastIntervalMs = 4600f,
     )
-    val ALL = listOf(LIGHT, FULL)
+    /** 자세 대신 도형 구멍 — 어떤 자세든 구멍에 들어가기만 하면 된다. 생각할 시간을 조금 더 준다 */
+    val CREATIVE = StretchCourse(
+        "creative", "크리에이티브", "도형 7개 · 자유 자세",
+        StretchShapes.ALL,
+        firstIntervalMs = 7000f, lastIntervalMs = 5800f,
+    )
+    val ALL = listOf(LIGHT, FULL, CREATIVE)
 }

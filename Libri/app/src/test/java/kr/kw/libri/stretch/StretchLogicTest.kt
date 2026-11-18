@@ -152,7 +152,7 @@ class StretchLogicTest {
 
     @Test
     fun demoRun_passesWallsAndShowsEveryGrade() {
-        for (course in StretchCourses.ALL) {
+        for (course in listOf(StretchCourses.LIGHT, StretchCourses.FULL)) {
             val s = play(course)
             val e = s.engine
             assertEquals(Phase.RESULT, e.phase)

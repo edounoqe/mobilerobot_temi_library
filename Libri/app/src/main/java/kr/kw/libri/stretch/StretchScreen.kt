@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
@@ -114,15 +115,17 @@ private fun StretchLobby(vm: StretchViewModel, onExit: () -> Unit, modifier: Mod
         },
     ) {
         LibriLabel("코스")
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             for (c in StretchCourses.ALL) {
                 LibriButton(
-                    c.title, { vm.course = c }, Modifier.weight(1f),
+                    // 이름이 긴 코스는 자리를 조금 더 준다
+                    c.title, { vm.course = c }, Modifier.weight(if (c.title.length > 4) 1.5f else 1f),
                     style = if (vm.course === c) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
-                    minHeight = 68.dp, sub = c.desc,
+                    minHeight = 68.dp, fontSize = 18, sub = c.desc,
                 )
             }
         }
+        if (vm.course === StretchCourses.CREATIVE) NoteText(StretchShapes.HINT, size = 19.sp)
         // 이 코스에 나오는 동작 미리보기
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -145,19 +148,19 @@ private fun StretchLobby(vm: StretchViewModel, onExit: () -> Unit, modifier: Mod
         }
 
         LibriButton(
-            "카메라로 시작", { if (camera.granted) vm.start(demo = false) else camera.request() },
+            "시작하기", { if (camera.granted) vm.start(demo = false) else camera.request() },
             Modifier.fillMaxWidth(), style = LibriButtonStyle.COLOR, minHeight = 84.dp, fontSize = 26,
             sub = "카메라로 몸 동작을 읽어요",
         )
         if (denied) {
             Text(
-                "카메라 권한이 없어 시작할 수 없어요. 설정에서 카메라를 허용하거나, 아래 '자동 시연'으로 구경해 보세요.",
+                "카메라 권한이 없어 시작할 수 없어요. 설정에서 카메라를 허용하거나, 아래 '튜토리얼 영상'으로 구경해 보세요.",
                 color = LibriColors.Stamp, fontSize = 14.sp,
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             LibriButton(
-                "자동 시연 보기", { vm.start(demo = true) }, Modifier.weight(1.25f),
+                "튜토리얼 영상", { vm.start(demo = true) }, Modifier.weight(1.25f),
                 minHeight = 64.dp, sub = "카메라 없이 구경하기",
             )
             LibriButton(
@@ -173,7 +176,19 @@ private fun StretchLobby(vm: StretchViewModel, onExit: () -> Unit, modifier: Mod
 private fun PoseIcon(pose: StretchPose, modifier: Modifier = Modifier, fill: Color = LibriColors.Card) {
     val figure = remember(pose) { Figure().also { pose.pose.layout(it) } }
     Canvas(modifier) {
-        FigurePainter(this, size.width / 2f, size.height * 0.97f, size.height / 4.2f).doll(figure, fill)
+        val unit = size.height / 4.2f
+        val shape = pose.shape
+        if (shape != null) {
+            // 도형 구멍 — 구멍 모양과, 그 안에 들어간 예시 인형을 옅게
+            val hole = shapePath(shape, size.width / 2f, size.height * 0.97f, unit * 0.92f)
+            clipRect {
+                drawPath(hole, GUIDE.copy(alpha = 0.22f))
+                drawPath(hole, LibriColors.Ink, style = Stroke(2.dp.toPx(), join = StrokeJoin.Round))
+            }
+            FigurePainter(this, size.width / 2f, size.height * 0.97f, unit * 0.92f).silhouette(figure, 0f, Color(0xFF8FA6BC))
+        } else {
+            FigurePainter(this, size.width / 2f, size.height * 0.97f, unit).doll(figure, fill)
+        }
     }
 }
 
@@ -289,7 +304,7 @@ private fun KeepScreenOn() {
 private fun TopBar(vm: StretchViewModel, s: StretchSession, modifier: Modifier) {
     LibriTopBar(onExit = { vm.quit() }, modifier = modifier) {
         Column(Modifier.weight(1f)) {
-            NoteText(if (s.demo) "자동 시연 · ${s.course.title}" else "${s.course.title} 코스", size = 17.sp, color = LibriColors.Pencil)
+            NoteText(if (s.demo) "튜토리얼 · ${s.course.title}" else "${s.course.title} 코스", size = 17.sp, color = LibriColors.Pencil)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("%,d".format(vm.score), fontSize = 30.sp, fontFamily = LibriFonts.Round, color = LibriColors.Ink)
                 if (vm.combo >= 2) NoteText("${vm.combo}연속 통과!", size = 21.sp, color = LibriColors.Stamp)
@@ -311,7 +326,7 @@ private fun ReadyCard(vm: StretchViewModel, s: StretchSession, modifier: Modifie
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (s.demo) {
-            TitleText("자동 시연을 시작합니다", size = 24.sp, align = TextAlign.Center)
+            TitleText("튜토리얼을 시작합니다", size = 24.sp, align = TextAlign.Center)
         } else {
             TitleText(
                 if (vm.tracked) "좋아요, 그대로!" else "카메라 앞에 서 주세요",
@@ -495,7 +510,7 @@ private fun ResultCard(vm: StretchViewModel, s: StretchSession, r: StretchResult
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        TitleText(if (s.demo) "자동 시연 끝!" else "스트레칭 완료!", size = 32.sp)
+        TitleText(if (s.demo) "튜토리얼 끝!" else "스트레칭 완료!", size = 32.sp)
         Stars(r.stars)
         Text("%,d점".format(r.score), fontSize = 50.sp, fontFamily = LibriFonts.Round, color = LibriColors.Ink)
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {

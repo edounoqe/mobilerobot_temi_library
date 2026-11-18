@@ -98,7 +98,7 @@ object LibriColors {
     val Yellow = Color(0xFFFFD43B)      // 형광펜 — 강조 · 가장 중요한 버튼
     val Coral = Color(0xFFF2644E)       // 색연필 빨강 — 실패 · 어긋남 · 참참참
     val Amber = Color(0xFFF7A928)       // 색연필 주황 — 거의 맞음
-    val Mint = Color(0xFF2BB98B)        // 색연필 초록 — 성공 · 맞음 · 눈 운동
+    val Mint = Color(0xFF2BB98B)        // 색연필 초록 — 성공 · 맞음 · 오목
     val Sky = Color(0xFF4A9CEB)         // 색연필 파랑 — 네컷 사진
     val Stamp = Color(0xFFD9412E)       // 도장 인주
 }

@@ -274,48 +274,66 @@ fun HandDoodle(modifier: Modifier = Modifier) {
     )
 }
 
-// ───────── 눈 ─────────
+// ───────── 오목 ─────────
 
-/** 홈 카드용 — 두 눈이 왼쪽·오른쪽·위·아래를 차례로 본다 */
+private val DOODLE_WOOD = Color(0xFFF5DCA6)
+
+// 돌이 놓이는 순서 (줄 번호 x, y) — 흑·백이 번갈아 두다가 흑이 대각선으로 다섯 알을 잇는다
+private val OMOK_MOVES = intArrayOf(2, 2, 2, 3, 1, 3, 1, 4, 3, 1, 3, 3, 0, 4, 2, 1, 4, 0)
+
+/** 홈 카드용 — 오목판 한 귀퉁이에 돌이 하나씩 놓이다가 다섯 알이 이어진다 */
 @Composable
-fun EyesDoodle(modifier: Modifier = Modifier) {
-    val t by loop(5200)
+fun OmokDoodle(modifier: Modifier = Modifier) {
+    val t by loop(6000)
     Spacer(
         modifier.drawWithCache {
             val s = min(size.width, size.height)
             val u = density
             val cx = size.width / 2f
             val cy = size.height / 2f
-            val r = s * 0.2f                       // 눈 하나의 반지름
-            val gap = s * 0.235f                   // 가운데에서 눈 중심까지
+            val side = s * 0.7f                    // 판 한 변
+            val left = cx - side / 2f
+            val top = cy - side / 2f
+            val pad = side * 0.1f
+            val step = (side - 2f * pad) / 5f
             val art = bake(size.width.toInt(), size.height.toInt()) {
                 scribble(cx, cy, s * 0.43f, LibriColors.Mint, u, seed = 5)
-                for (side in intArrayOf(-1, 1)) drawCircle(LibriColors.Card, r, Offset(cx + side * gap, cy))
+                drawRect(DOODLE_WOOD, Offset(left, top), androidx.compose.ui.geometry.Size(side, side))
                 penciled(0.3f, 1.3f * u) {
-                    val sk = Sketch(this, 41, u)
-                    for (side in intArrayOf(-1, 1)) {
-                        val ex = cx + side * gap
-                        sk.circle(ex, cy, r, width = 3f)
-                        // 눈썹
-                        sk.curve(
-                            floatArrayOf(ex - r * 0.8f, cy - r * 1.42f, ex, cy - r * 1.7f, ex + r * 0.8f, cy - r * 1.42f),
-                            width = 3f,
-                        )
+                    val sk = Sketch(this, 23, u)
+                    for (i in 0..5) {
+                        val p = pad + i * step
+                        sk.line(left + pad, top + p, left + side - pad, top + p, LibriColors.Ink.copy(alpha = 0.7f), 1.3f, rough = 0.6f, passes = 1)
+                        sk.line(left + p, top + pad, left + p, top + side - pad, LibriColors.Ink.copy(alpha = 0.7f), 1.3f, rough = 0.6f, passes = 1)
                     }
+                    sk.poly(floatArrayOf(left, top, left + side, top, left + side, top + side, left, top + side), width = 2.8f)
                 }
             }
             onDrawBehind {
                 drawImage(art)
-                // 가운데 → 왼쪽 → 가운데 → 오른쪽 → 가운데 → 위 → 가운데 → 아래
-                val step = (t * 4f).toInt().coerceIn(0, 3)
-                val f = t * 4f - step
-                val out = ease(f / 0.25f) * (1f - ease((f - 0.7f) / 0.25f))
-                val dx = floatArrayOf(-1f, 1f, 0f, 0f)[step] * out
-                val dy = floatArrayOf(0f, 0f, -1f, 1f)[step] * out
-                for (side in intArrayOf(-1, 1)) {
-                    val p = Offset(cx + side * gap + dx * r * 0.46f, cy + dy * r * 0.46f)
-                    drawCircle(LibriColors.Ink, r * 0.44f, p)
-                    drawCircle(LibriColors.Card, r * 0.14f, Offset(p.x - r * 0.14f, p.y - r * 0.16f))
+                fun at(i: Int) = Offset(left + pad + OMOK_MOVES[2 * i] * step, top + pad + OMOK_MOVES[2 * i + 1] * step)
+                val count = OMOK_MOVES.size / 2
+                val r = step * 0.42f
+                for (i in 0 until count) {
+                    val age = (t - i * 0.075f) / 0.04f          // 0 → 1 사이에 '딱' 하고 내려앉는다
+                    if (age <= 0f) break
+                    val k = if (age < 1f) 1.35f - 0.35f * age else 1f
+                    val p = at(i)
+                    drawCircle(if (i % 2 == 0) LibriColors.Ink else LibriColors.Card, r * k, p)
+                    drawCircle(LibriColors.Ink, r * k, p, style = androidx.compose.ui.graphics.drawscope.Stroke(1.7f * u))
+                }
+                // 다섯 알이 이어지면 색연필로 한 줄 긋는다
+                val line = ease((t - 0.74f) / 0.1f)
+                if (line > 0f) {
+                    val a0 = at(6)      // 대각선의 왼쪽 아래 끝 (0, 4)
+                    val b0 = at(8)      // 오른쪽 위 끝 (4, 0)
+                    val ext = step * 0.45f / 1.414f
+                    val a1 = Offset(a0.x - ext, a0.y + ext)
+                    val b1 = Offset(b0.x + ext, b0.y - ext)
+                    drawLine(
+                        LibriColors.Coral, a1, Offset(a1.x + (b1.x - a1.x) * line, a1.y + (b1.y - a1.y) * line),
+                        strokeWidth = 4.2f * u, cap = StrokeCap.Round,
+                    )
                 }
             }
         }
