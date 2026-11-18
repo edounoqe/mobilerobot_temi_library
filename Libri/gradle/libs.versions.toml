@@ -11,6 +11,7 @@ composeBom = "2026.02.01"
 temiSdk = "1.138.0"
 camerax = "1.4.2"
 mlkitFace = "16.1.7"
+mlkitPose = "18.0.0-beta5"
 firebaseBom = "34.19.0" # Preserve Android 6 / API 23 support for TEMI.
 googleServices = "4.5.0"
 
@@ -42,6 +43,8 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 # ML Kit 얼굴 검출 — bundled (모델이 APK 에 포함, Google Play 서비스 불필요, API 23+)
 mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFace" }
+# ML Kit 포즈 검출 — bundled. 스트레칭 게임에서 몸 뼈대(33개 관절)를 읽는다
+mlkit-pose-detection = { group = "com.google.mlkit", name = "pose-detection", version.ref = "mlkitPose" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database" }
