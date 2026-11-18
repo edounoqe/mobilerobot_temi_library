@@ -3,6 +3,7 @@ package kr.kw.libri
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,9 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.robotemi.sdk.Robot
 import com.robotemi.sdk.listeners.OnRobotReadyListener
 import kr.kw.libri.chamchamcham.ChamScreen
+import kr.kw.libri.common.paper
 import kr.kw.libri.eye_work.EyeWorkScreen
 import kr.kw.libri.photobooth.PhotoBoothScreen
 import kr.kw.libri.stretch.StretchScreen
@@ -34,10 +37,13 @@ class MainActivity : ComponentActivity(), OnRobotReadyListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // 모든 화면이 밝은 책 종이 바탕이므로 상태바·내비게이션바도 투명 바탕 + 어두운 아이콘으로 맞춘다
+        val paperBars = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        enableEdgeToEdge(statusBarStyle = paperBars, navigationBarStyle = paperBars)
         setContent {
             LibriTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                // 종이 바탕은 창 전체(상태바 아래까지)에 한 장으로 깐다 — 화면마다 따로 깔면 이음매가 보인다
+                Scaffold(modifier = Modifier.fillMaxSize().paper(), containerColor = Color.Transparent) { innerPadding ->
                     var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
                     val toHome = { screen = Screen.HOME }
                     val pad = Modifier.padding(innerPadding)
