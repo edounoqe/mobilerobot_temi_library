@@ -27,8 +27,8 @@ object SupabaseManager {
     private const val SUPABASE_URL = "https://tyakhgrlmaqckoltlidu.supabase.co"
     private const val SUPABASE_ANON_KEY = "sb_publishable_dpQiY-06gNnG4QoWK4zs-Q_XxuZdjro"
 
-    private const val BUCKET_NAME = "temi_photo"
-    private const val TABLE_NAME = "temi_photo"
+    private const val BUCKET_NAME = "photos"
+    private const val TABLE_NAME = "temi_photos"
 
     val client = createSupabaseClient(
         supabaseUrl = SUPABASE_URL,
