@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.face.detection)
+    implementation(libs.mlkit.pose.detection)
     implementation(libs.temi.sdk)
 
     // 네컷 사진 촬영, QR 생성 및 Supabase 연동
@@ -91,4 +92,5 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.ktor:ktor-client-android:2.3.12")
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.junit)
 }

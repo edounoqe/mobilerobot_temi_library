@@ -47,8 +47,8 @@
 | ⭐ **메인** | **네컷 사진** | P4 · P5 · P6 | temi 앞에서 4장을 찍어 한 장으로 합성 |
 | | **이미지 프레임** | P5 | 도서관·광운대 테마 프레임 중 골라서 꾸미기 |
 | | **QR 다운로드** | P5 | 화면의 QR을 휴대폰으로 찍어 사진 저장 |
-| 🎮 **미니게임** | **자세교정 스트레칭** | P1 · P2 | 화면 동작을 따라 하면 카메라가 목 각도로 판정 |
-| | **눈 휴식** | P1 · P3 | 화면의 점을 고개로 따라가기, 먼 곳 보기 20초 |
+| 🎮 **미니게임** | **자세교정 스트레칭** | P1 · P2 | 다가오는 책장 벽의 구멍과 같은 자세를 잡아 통과. 카메라가 몸 뼈대(포즈)를 읽어 판정 |
+| | **오목** | P1 · P4 · P6 | 다섯 알을 먼저 잇는 판 게임. 봇과 연습하거나 **L층·1층 temi끼리 대결**하고 **랭킹**에 오른다 |
 | | **참참참** | P1 · P4 · P6 | 고개 방향으로 겨루는 게임. **L층·1층 temi끼리 대결** 가능 |
 | 📝 **공통** | **만족도 조사** | — | 체험이 끝나면 이모지 1문항으로 평가 |
 
@@ -64,7 +64,7 @@
    ▼
  ┌──────────────┬────────────────────────────┐
  │ 📸 네컷 사진  │ 🎮 미니게임                 │
- │  촬영 동의    │  스트레칭 / 눈 휴식 / 참참참  │
+ │  촬영 동의    │  스트레칭 / 오목 / 참참참     │
  │  프레임 선택  │                            │
  │  4장 촬영     │                            │
  │  QR 다운로드  │                            │
@@ -94,9 +94,11 @@
 | 고개 방향 인식 (ML Kit) | ✅ 구현 (`common/FaceDetectionView`) |
 | 참참참 (봇 테스트 · Firebase 멀티플레이) | 🛠️ 구현 완료, 기기 테스트 중 (`chamchamcham`) |
 | 홈 화면 · 기능 선택 메뉴 | ✅ 구현 (`HomeScreen`) |
+| 공용 화면 스타일 '책 종이 위 연필 스케치' (홈 · 대기실 · 게임 화면) | ✅ 구현 (`common/LibriUi` · `common/Sketch` · `common/Doodles`) |
 | 네컷 사진 · 프레임 · QR (Supabase) | ⏳ 예정 (`photobooth` — 화면 자리만) |
-| 눈 운동 (가운데 점 보며 고개 돌리기) | ✅ 구현 (`eye_work`) |
-| 스트레칭 가이드 | ⏳ 예정 (`stretch` — 화면 자리만) |
+| 얼굴 화면 (두 눈 — 누르면 홈으로) | ✅ 구현 (`FaceScreen`) — temi 사람 감지 연동은 기기 테스트 필요 |
+| 오목 (봇 연습 · 기기 2대 대결 · 랭킹) | 🛠️ 봇 연습 구현 완료. 기기 2대 대결·랭킹은 Firebase 규칙을 열어야 동작 — 실제 통신 미확인 (`omok`) |
+| 스트레칭 (책장 통과 게임 · ML Kit 포즈 검출 · 코스 3개) | 🛠️ 구현 완료, 기기 테스트 필요 (`stretch`) |
 | 만족도 조사 | ⏳ 예정 |
 
 ---
@@ -119,11 +121,15 @@
 
 ```
 Libri/app/src/main/java/kr/kw/libri/
-├── MainActivity.kt          # temi 연결 + 홈 ↔ 기능 화면 전환
+├── MainActivity.kt          # temi 연결 + 얼굴 화면 ↔ 홈 ↔ 기능 화면 전환
+├── FaceScreen.kt            # 얼굴 화면 — 두 눈. 누르면 홈으로
 ├── HomeScreen.kt            # 기능 선택 메뉴
 │
 ├── common/                  # 여러 기능이 공유하는 코드
-│   └── FaceDetectionView.kt     # 카메라 + ML Kit 얼굴·고개 인식 (YAW_SIGN·DIR_THRESHOLD)
+│   ├── FaceDetectionView.kt     # 카메라 + ML Kit 얼굴·고개 인식 (YAW_SIGN·DIR_THRESHOLD)
+│   ├── LibriUi.kt               # 공용 화면 스타일 — 종이 바탕 · 색 · 글꼴 · 카드 · 버튼 · 도장 · 대기실 틀 · 카메라 권한
+│   ├── Sketch.kt                # 손그림 도구 — 떨리는 연필 선 · 빗금 · 색연필 칠 · 종이 결 (비트맵에 한 번만 그린다)
+│   └── Doodles.kt               # 손그림 모음 — 참참참 손 · 오목판 · 종이 인형 · 네컷 사진 · 책
 │
 ├── photobooth/              # 📸 네컷 사진        (예정 — Supabase 업로드·QR)
 │   └── PhotoBoothScreen.kt
@@ -133,21 +139,38 @@ Libri/app/src/main/java/kr/kw/libri/
 │   ├── ChamViewModel.kt         # 라운드 진행 · "참" 소리 · 수비 판정
 │   ├── ChamModels.kt            # 규칙 · 박자 타이밍 · 손 애니메이션 계산
 │   ├── ChamServers.kt           # Firebase 서버 / 봇 테스트 서버
-│   └── ChamHand.kt              # 손 그리기 · 손목 회전
+│   └── ChamHand.kt              # 손 찍기 · 손목 회전 (내 손은 아래에서, 상대 손은 위에서)
 │
-├── eye_work/                # 👀 눈 운동          (구현 완료)
-│   ├── EyeWorkScreen.kt         # 가운데 점 + 안내 + 완료 UI
-│   └── EyeWorkViewModel.kt      # 고개 각도 판정 · 단계 진행
+├── omok/                    # ⚫ 오목             (봇 연습 구현 완료 · 온라인은 Firebase 규칙 필요)
+│   ├── OmokScreen.kt            # 대기실 · 대국 화면 · 랭킹
+│   ├── OmokBoard.kt             # 오목판 그리기 · 누른 자리 계산
+│   ├── OmokViewModel.kt         # 방 상태 전달 · 봇 차례 · 랭킹 기록
+│   ├── OmokRules.kt             # 규칙 — 다섯 알 · 삼삼 금지 · 둔 수 다시 놓기
+│   ├── OmokBot.kt               # 혼자 연습할 때의 상대 — 규칙 기반, 난이도 3단계(수읽기 깊이)
+│   ├── OmokRoom.kt              # 방(자리 · 판)과 두 사람의 약속, 기기 안의 방
+│   └── OmokFirebase.kt          # 기기 2대 대결의 방(Realtime Database) · 랭킹(Firestore)
 │
-├── stretch/                 # 🤸 스트레칭 가이드   (예정)
-│   └── StretchScreen.kt
+├── stretch/                 # 🤸 책장 통과 스트레칭 (구현 완료)
+│   ├── StretchScreen.kt         # 대기실 · 게임 화면(HUD) · 결과
+│   ├── StretchViewModel.kt      # 프레임 진행 · 화면 상태 · 효과음 연결
+│   ├── StretchSession.kt        # 한 판 — 자세 스무딩 · 화면 효과(종이 조각·파편)
+│   ├── StretchEngine.kt         # 게임 규칙 · 판정 · 점수 · 튜토리얼(자동 시연) 플레이어
+│   ├── StretchPoses.kt          # 동작(벽 구멍) 목록 · 코스 · 일치도 계산
+│   ├── StretchShapes.kt         # 크리에이티브 코스 — 도형 구멍 · '구멍에 들어갔는지' 판정
+│   ├── PoseMath.kt              # 뼈대 각도로 자세 표현 · 마네킹 관절 계산
+│   ├── PoseTracker.kt           # ML Kit 랜드마크 → 뼈대 각도
+│   ├── PoseCameraView.kt        # 카메라 + ML Kit 포즈 검출 (MIRROR_FRONT_CAMERA)
+│   ├── LibraryAisle.kt          # 무대 배경 — 종이 위에 색연필로 그린 도서관 통로 (책장 · 카펫 · 등)
+│   ├── StageRenderer.kt         # 무대 그리기 — 통로 위에 책장 벽 · 아바타 · 효과
+│   └── StretchSfx.kt            # 효과음 합성
 │
 └── ui/theme/                # 공용 테마
 ```
 
 **원칙**
 - 각 기능은 `{기능}Screen` + `{기능}ViewModel` 한 쌍으로 독립 — 서로 import 하지 않는다.
-- 공유되는 건 `common/` 에만 (얼굴 인식·카메라·공용 유틸).
+- 공유되는 건 `common/` 에만 (얼굴 인식·카메라·공용 화면 스타일·공용 유틸).
+- 새 화면은 `LibriScreen` · `LibriLobby`(대기실 틀) · `SketchCard` · `LibriButton` · `TitleText` / `NoteText` 로 만들어 다른 화면과 모양을 맞춘다.
 - 화면 전환은 `MainActivity` 의 `Screen` enum + `when` 분기. 기능이 더 늘면 Compose Navigation 으로 승격.
 
 ---
@@ -191,9 +214,92 @@ supabase.bucket=photos
 </details>
 
 <details>
+<summary><b>화면 스타일 — 책 종이 위 연필 스케치</b></summary>
+
+도서관 책의 여백에 연필로 그린 낙서처럼 보이게 한다.
+
+- **바탕**은 책 종이, **선**은 연필, 카드와 버튼은 굵은 테두리에 딱 떨어지는 그림자.
+- 메뉴·안내 화면은 연필 색(흑백)에 형광펜 노랑만 쓰고, **게임 화면은 색연필 색**을 쓴다 (참참참 빨강·파랑, 오목 초록·나무색, 스트레칭은 여러 색 책장).
+- 아이콘은 이모지가 아니라 직접 그린 손그림(`common/Doodles.kt`)이다. temi(Android 6)는 최신 이모지를 그리지 못한다.
+- 손그림(떨리는 선·빗금·연필 결)은 `Sketch` 로 **비트맵에 한 번만** 그려 두고 화면에는 그 비트맵을 찍는다.
+  Android 6 은 프레임마다 바뀌는 Path 를 CPU 로 그려서 느리기 때문이다. 프레임마다 움직이는 것은 선·원·사각형·비트맵만 쓴다.
+- 글꼴 (`res/font`, 모두 SIL Open Font License — 라이선스 전문은 `assets/licenses/`):
+
+  | 쓰임 | 글꼴 | 코드 |
+  |---|---|---|
+  | 제목 · 도장 | Bagel Fat One | `LibriFonts.Title` / `TitleText` |
+  | 버튼 · 짧은 이름 · 숫자 | Jua | `LibriFonts.Round` |
+  | 연필 메모 | Gaegu Bold | `LibriFonts.Hand` / `NoteText` |
+
+  본문은 기기 기본 글꼴을 쓴다.
+</details>
+
+<details>
+<summary><b>참참참 규칙 · 화면</b></summary>
+
+- **규칙**: 수비자가 손과 같은 쪽을 보거나 고개를 돌리지 못하면 공격 성공 — 공격자가 +1점을 얻고 **계속 공격**한다.
+  수비자가 반대쪽을 보면 공격 실패 — 점수 없이 **공격권이 수비자에게 넘어간다**. (`ChamModels.applyResult`, 단위 테스트 `ChamRulesTest`)
+- **내 턴(공격)**: 내가 손을 내민 것처럼 내 손이 화면 아래에서 올라온다.
+  **상대 턴(수비)**: 상대가 손을 내민 것처럼 상대 손이 화면 위(상대편)에서 내려온다. 소매 색은 손 주인의 자리 색(A 빨강 · B 파랑)이다.
+- 손은 엄지를 위로 세운 손날이고, 엄지가 맨 위에 보인다 (`common/Doodles.kt` 의 `bakeHandArt`).
+</details>
+
+<details>
 <summary><b>참참참 고개 방향 조정</b></summary>
 
 고개 방향이 반대로 판정되면 `common/FaceDetectionView.kt` 의 `YAW_SIGN = -1f` 로, 판정 각도는 `DIR_THRESHOLD` (기본 20°) 로 조정한다.
+</details>
+
+<details>
+<summary><b>스트레칭 조정 · 테스트</b></summary>
+
+- 아바타 팔이 좌우 반대로 움직이면 `stretch/PoseCameraView.kt` 의 `MIRROR_FRONT_CAMERA = false` 로 바꾼다.
+- 통과 기준은 `stretch/StretchEngine.kt` 의 `GOOD_FIT`(0.6) · `PERFECT_FIT`(0.85), 뼈대별 허용 각도는 `stretch/PoseMath.kt` 의 `Bone(tolIn, tolOut)` 으로 조정한다.
+- 동작·코스는 `stretch/StretchPoses.kt` 에서 추가한다 (팔 각도: 0 = 내림, 90 = 옆, 180 = 위).
+- 코스는 세 가지다 — **가볍게**(6동작) · **제대로**(10동작) · **크리에이티브**(도형 7개).
+  크리에이티브는 벽에 자세 대신 도형 구멍(브이 · 가로 틈 · 동그란 창 · 기울어진 틈 · 기역)이 뚫려 있다.
+  정해진 자세 없이 몸이 구멍 가장자리에 닿지 않으면 통과('좋아요')하고, 구멍을 넓게 채우면 '완벽'이다.
+  도형은 `stretch/StretchShapes.kt` 에서 꼭짓점 좌표(가운데 x = 0, 바닥 y = 0, 단위 = 몸통 길이)로 추가한다.
+- 카메라 없이 확인하려면 대기실의 **튜토리얼 영상**(자동 시연)을 쓴다. 규칙·판정 로직은 단위 테스트 `StretchLogicTest` · `StretchShapeTest` 로 검증한다 (Gradle 작업 `:app:testDebugUnitTest` — `ChamRulesTest` · `OmokLogicTest` 도 함께 돈다).
+</details>
+
+<details>
+<summary><b>얼굴 화면</b></summary>
+
+- 앱을 켜면 두 눈이 있는 얼굴 화면이 먼저 뜨고, 화면을 누르면 홈(기능 선택)으로 넘어간다.
+  홈에서 1분 동안 아무도 화면을 만지지 않으면 다시 얼굴 화면으로 돌아간다 (`MainActivity` 의 `IDLE_TO_FACE_MS`).
+- 눈은 이따금 깜빡이고 둘러본다. 화면에 손이 닿거나 temi 가 앞에 온 사람을 알아채면 눈웃음을 짓고 인사말이 바뀐다.
+  사람 감지는 temi 설정의 감지 모드가 켜져 있어야 하고, 실제 로봇에서는 아직 확인하지 못했다.
+</details>
+
+<details>
+<summary><b>오목 규칙 · 기기 2대 대결 · 랭킹</b></summary>
+
+- **규칙**: 15 × 15 판, 흑이 먼저. 가로·세로·대각선으로 다섯 알 이상을 먼저 이으면 이긴다.
+  한 수로 '열린 3' 이 두 줄 생기는 **삼삼** 자리에는 흑·백 모두 둘 수 없다 (다섯 알이 완성되는 수는 예외).
+- **두는 법**: 자리를 한 번 누르면 놓아 볼 돌이 보이고, 같은 자리를 한 번 더 누르거나 **여기에 두기** 를 누르면 놓인다.
+- **혼자 연습**: 봇과 둔다. 봇은 학습된 모델이 아니라 직접 짠 규칙 기반 봇이다 (`omok/OmokBot.kt`) —
+  자리마다 값을 매기고, 값이 높은 자리 몇 개만 골라 몇 수 앞을 읽는다 (알파-베타 가지치기).
+  난이도는 **쉬움**(수읽기 없음, 가끔 덜 좋은 자리에 둠) · **보통**(내 수 + 상대의 응수) · **어려움**(네 수 앞)이다.
+- **기기 2대 대결**: 두 기기가 같은 방 이름으로 들어온다. 먼저 온 사람이 흑(선)이고, '한 판 더' 를 하면 흑이 바뀐다.
+  기권하거나 도중에 나가면 그 사람의 패배다.
+- **랭킹**: 기기 2대 대결의 승패가 이름별로 쌓인다 (돌을 6개 이상 둔 판만). 이긴 판이 많은 순서로 보여 준다.
+- **Firebase 규칙이 필요하다** — 지금 팀 프로젝트의 Realtime Database · Firestore 는 로그인하지 않은 접근을 거절하므로
+  (2026-11-18 확인: 401 · 403), 아래처럼 오목이 쓰는 경로를 열어야 대결과 랭킹이 동작한다. 규칙을 열기 전에는
+  앱이 "서버가 접근을 막고 있어요" 라고 안내한다. 누구나 읽고 쓸 수 있게 되는 규칙이므로 발표·시연용으로만 쓴다.
+
+  ```json
+  // Realtime Database 규칙
+  { "rules": { "omok": { ".read": true, ".write": true } } }
+  ```
+
+  ```
+  // Firestore 규칙
+  match /omok_ranking/{name} { allow read, write: if true; }
+  ```
+
+  데이터 모양: `omok/rooms/{방 이름}/seats/{A|B}`, `omok/rooms/{방 이름}/game`, Firestore `omok_ranking/{이름}`.
+- 규칙·봇·두 사람이 한 방에서 두는 약속은 단위 테스트 `OmokLogicTest` 로 검증한다. 두 기기 사이의 실제 통신은 아직 확인하지 못했다.
 </details>
 
 ---

@@ -8,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.Surface
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -71,6 +72,12 @@ fun PhotoBoothScreen(
     val appContext = context.applicationContext
 
     var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
+
+    // 뒤로가기 제스처 시 카메라 리소스 해제 후 종료
+    BackHandler {
+        cameraProvider?.unbindAll()
+        onExit()
+    }
 
     // 화면 종료 시 카메라 리소스 반환
     DisposableEffect(Unit) {
@@ -244,7 +251,7 @@ fun PhotoBoothScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "스마트폰으로 스캔하세요!",
+                            text = "스마트폰으로 스캔하세요",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             color = Color.Black
