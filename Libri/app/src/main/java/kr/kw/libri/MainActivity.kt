@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.lifecycle.lifecycleScope
 import com.robotemi.sdk.Robot
 import com.robotemi.sdk.listeners.OnDetectionStateChangedListener
 import com.robotemi.sdk.listeners.OnRobotReadyListener
@@ -41,24 +42,27 @@ private const val IDLE_TO_FACE_MS = 60_000L
 
 /**
  * Libri — 앱을 켜면 얼굴 화면(두 눈)을 띄우고, 화면을 누르면 홈 화면(기능 선택)으로 넘어간다.
- * temi 에서는 로봇 연결 시 상단바에 앱을 등록하고, 사람이 가까이 오면 얼굴이 반긴다
- * (폰·AVD 에서는 로봇 콜백이 오지 않을 뿐 그대로 동작한다).
+ * temi 에서는 로봇 연결 시 상단바에 앱을 등록하고, 대기 중 순회(Patrol) 및 화면별 자동 틸트를 제어한다.
  */
 class MainActivity : ComponentActivity(), OnRobotReadyListener, OnDetectionStateChangedListener {
 
     private val robot: Robot by lazy { Robot.getInstance() }
+    private val patrolController: PatrolController by lazy {
+        PatrolController(robot = robot, scope = lifecycleScope)
+    }
 
     /** temi 가 앞에 사람이 있다고 알려 온 상태 */
     private var personNear by mutableStateOf(false)
 
+    /** 로봇 SDK 연결 준비 완료 상태 */
+    private var isRobotReady by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 모든 화면이 밝은 책 종이 바탕이므로 상태바·내비게이션바도 투명 바탕 + 어두운 아이콘으로 맞춘다
         val paperBars = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = paperBars, navigationBarStyle = paperBars)
         setContent {
             LibriTheme {
-                // 종이 바탕은 창 전체(상태바 아래까지)에 한 장으로 깐다 — 화면마다 따로 깔면 이음매가 보인다
                 Scaffold(modifier = Modifier.fillMaxSize().paper(), containerColor = Color.Transparent) { innerPadding ->
                     var screen by rememberSaveable { mutableStateOf(Screen.FACE) }
                     val toHome = { screen = Screen.HOME }
@@ -72,11 +76,21 @@ class MainActivity : ComponentActivity(), OnRobotReadyListener, OnDetectionState
                             screen = Screen.FACE
                         }
                     }
+
+                    // 화면 전환 · 사람 근접 · 로봇 연결 상태에 따라 순회 주행과 고개 각도(Tilt)를 자동 제어
+                    LaunchedEffect(screen, personNear, isRobotReady) {
+                        patrolController.updateTiltForScreen(screen)
+                        if (screen == Screen.FACE && !personNear) {
+                            patrolController.startPatrol()
+                        } else {
+                            patrolController.stopPatrol()
+                        }
+                    }
+
                     Box(
                         Modifier.fillMaxSize().pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
-                                    // 아래 화면보다 먼저 보기만 하고(Initial), 누름을 가로채지는 않는다
                                     if (awaitPointerEvent(PointerEventPass.Initial).type == PointerEventType.Press) touches++
                                 }
                             }
@@ -100,19 +114,24 @@ class MainActivity : ComponentActivity(), OnRobotReadyListener, OnDetectionState
         super.onStart()
         robot.addOnRobotReadyListener(this)
         robot.addOnDetectionStateChangedListener(this)
+        patrolController.attach()
     }
 
     override fun onStop() {
         super.onStop()
+        patrolController.detach()
         robot.removeOnRobotReadyListener(this)
         robot.removeOnDetectionStateChangedListener(this)
         personNear = false
+        isRobotReady = false
     }
 
     override fun onRobotReady(isReady: Boolean) {
+        isRobotReady = isReady
+        patrolController.isRobotReady = isReady
         if (!isReady) return
         val info = packageManager.getActivityInfo(componentName, PackageManager.GET_META_DATA)
-        robot.onStart(info)   // 내 앱을 TEMI 상단바에 등록
+        robot.onStart(info)
     }
 
     /** temi 의 사람 감지 — 설정에서 감지 모드가 켜져 있을 때만 불린다 */
