@@ -6,11 +6,12 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kr.kw.libri.common.LibriButton
 import kr.kw.libri.common.LibriButtonStyle
+import kr.kw.libri.common.LeaveOnDispose
 import kr.kw.libri.common.LibriColors
 import kr.kw.libri.common.LibriFonts
 import kr.kw.libri.common.LibriLabel
@@ -84,6 +85,8 @@ fun StretchScreen(
     vm: StretchViewModel = viewModel(),
 ) {
     val session = vm.session
+    // 사람이 떠나 얼굴 화면으로 돌아가는 등 화면이 바뀌면 판을 접는다 (다음 사람은 대기실부터)
+    LeaveOnDispose { vm.quit() }
     if (session == null) {
         BackHandler(onBack = onExit)
         StretchLobby(vm, onExit, modifier)
@@ -96,6 +99,7 @@ fun StretchScreen(
 // ───────── 대기실 ─────────
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun StretchLobby(vm: StretchViewModel, onExit: () -> Unit, modifier: Modifier) {
     var denied by rememberSaveable { mutableStateOf(false) }
     val camera = rememberCameraAccess { granted -> if (granted) vm.start(demo = false) else denied = true }
@@ -126,20 +130,21 @@ private fun StretchLobby(vm: StretchViewModel, onExit: () -> Unit, modifier: Mod
             }
         }
         if (vm.course === StretchCourses.CREATIVE) NoteText(StretchShapes.HINT, size = 19.sp)
-        // 이 코스에 나오는 동작 미리보기
-        Row(
+        // 이 코스에 나오는 동작 미리보기 — 옆으로 숨지 않게 줄을 바꿔 모두 보여 준다
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
         ) {
             vm.course.poses.forEachIndexed { i, pose ->
-                SketchSurface(Modifier.width(108.dp), radius = 14.dp, shadow = 4.dp, strokeWidth = 2f, seed = 100 + i) {
+                SketchSurface(Modifier.width(86.dp), radius = 14.dp, shadow = 4.dp, strokeWidth = 2f, seed = 100 + i) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp),
                     ) {
-                        PoseIcon(pose, Modifier.size(80.dp))
+                        PoseIcon(pose, Modifier.size(64.dp))
                         Text(
-                            "${i + 1}. ${pose.name}", color = LibriColors.Ink, fontSize = 13.sp, fontFamily = LibriFonts.Round,
+                            "${i + 1}. ${pose.name}", color = LibriColors.Ink, fontSize = 12.sp, fontFamily = LibriFonts.Round,
                             textAlign = TextAlign.Center, maxLines = 2, lineHeight = 16.sp,
                         )
                     }
@@ -221,7 +226,7 @@ private fun StretchGame(vm: StretchViewModel, s: StretchSession, modifier: Modif
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    Box(Modifier.size(if (wide) 180.dp else 100.dp, if (wide) 135.dp else 134.dp).background(LibriColors.Ink)) {
+                    Box(Modifier.size(if (wide) 180.dp else 100.dp, if (wide) 135.dp else 134.dp).clipToBounds().background(LibriColors.Ink)) {
                         PoseCameraView(Modifier.fillMaxSize(), onObservation = vm::onObservation)
                     }
                     NoteText(
@@ -238,7 +243,7 @@ private fun StretchGame(vm: StretchViewModel, s: StretchSession, modifier: Modif
             Phase.READY -> ReadyCard(
                 vm, s,
                 // 아바타를 가리지 않게 — 가로 화면은 왼쪽 패널, 세로 화면은 머리 위
-                if (wide) Modifier.align(Alignment.CenterStart).padding(start = 18.dp).width(224.dp)
+                if (wide) Modifier.align(Alignment.CenterStart).padding(start = 18.dp).width(SIDE_CARD_W)
                 else Modifier.align(Alignment.TopCenter).padding(top = 84.dp, start = 16.dp, end = 16.dp).widthIn(max = 460.dp),
             )
             Phase.COUNTDOWN -> CountdownNumber(vm.countdown, wide, Modifier.align(sideOrTop(wide, -0.74f)))
@@ -252,7 +257,7 @@ private fun StretchGame(vm: StretchViewModel, s: StretchSession, modifier: Modif
                     )
                     FitBar(
                         vm, s,
-                        if (wide) Modifier.align(Alignment.BottomStart).padding(start = 18.dp, bottom = 16.dp).width(214.dp)
+                        if (wide) Modifier.align(Alignment.BottomStart).padding(start = 18.dp, bottom = 16.dp).width(SIDE_CARD_W)
                         else Modifier.align(Alignment.BottomCenter)
                             .padding(start = if (s.demo) 20.dp else 140.dp, end = 20.dp, bottom = 30.dp).fillMaxWidth(),
                     )
@@ -265,6 +270,9 @@ private fun StretchGame(vm: StretchViewModel, s: StretchSession, modifier: Modif
         }
     }
 }
+
+/** 가로 화면 왼쪽 패널(안내·동작·일치도 카드)의 폭 — 제목이 한 줄에 들어가고 아바타는 가리지 않는 정도 */
+private val SIDE_CARD_W = 300.dp
 
 /**
  * 판정 도장·카운트다운 자리 — 아바타를 가리지 않는 곳.
@@ -302,7 +310,9 @@ private fun KeepScreenOn() {
 
 @Composable
 private fun TopBar(vm: StretchViewModel, s: StretchSession, modifier: Modifier) {
-    LibriTopBar(onExit = { vm.quit() }, modifier = modifier) {
+    // 직접 하는 판이 진행 중이면 '나가기'를 한 번 더 눌러야 한다 (튜토리얼·결과 화면은 바로)
+    val inProgress = !s.demo && vm.phase != Phase.RESULT
+    LibriTopBar(onExit = { vm.quit() }, modifier = modifier, confirmExit = inProgress) {
         Column(Modifier.weight(1f)) {
             NoteText(if (s.demo) "튜토리얼 · ${s.course.title}" else "${s.course.title} 코스", size = 17.sp, color = LibriColors.Pencil)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -396,7 +406,7 @@ private fun PoseCard(vm: StretchViewModel, s: StretchSession, target: Wall, wide
 
     if (wide) {
         SketchCard(
-            modifier.width(214.dp), seed = 23,
+            modifier.width(SIDE_CARD_W), seed = 23,
             padding = PaddingValues(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -503,6 +513,7 @@ private fun GradePopupStamp(popup: GradePopup?, wide: Boolean, modifier: Modifie
 
 @Composable
 private fun ResultCard(vm: StretchViewModel, s: StretchSession, r: StretchResult, modifier: Modifier) {
+    var cameraDenied by remember { mutableStateOf(false) }
     SketchCard(
         modifier = modifier.padding(20.dp).widthIn(max = 400.dp),
         radius = 30.dp, shadow = 8.dp, seed = 27,
@@ -530,8 +541,23 @@ private fun ResultCard(vm: StretchViewModel, s: StretchSession, r: StretchResult
         )
         Spacer(Modifier.height(2.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            LibriButton("다시 하기", { vm.start(demo = s.demo) }, Modifier.weight(1f), style = LibriButtonStyle.INK)
+            if (s.demo) {
+                // 튜토리얼을 본 사람에게는 '직접 해 보기'가 다음 할 일이다
+                val camera = rememberCameraAccess { granted -> if (granted) vm.start(demo = false) else cameraDenied = true }
+                LibriButton(
+                    "직접 해 보기", { if (camera.granted) vm.start(demo = false) else camera.request() },
+                    Modifier.weight(1f), style = LibriButtonStyle.INK,
+                )
+            } else {
+                LibriButton("다시 하기", { vm.start(demo = false) }, Modifier.weight(1f), style = LibriButtonStyle.INK)
+            }
             LibriButton("나가기", { vm.quit() }, Modifier.weight(1f))
+        }
+        if (cameraDenied) {
+            Text(
+                "카메라 권한이 없어 직접 할 수 없어요. 설정에서 카메라를 허용해 주세요.",
+                color = LibriColors.Stamp, fontSize = 14.sp, textAlign = TextAlign.Center,
+            )
         }
     }
 }

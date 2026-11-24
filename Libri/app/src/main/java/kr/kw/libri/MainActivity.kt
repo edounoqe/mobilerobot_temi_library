@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -38,8 +39,15 @@ import kr.kw.libri.ui.theme.LibriTheme
 /** 앱 화면 — 얼굴 화면을 누르면 홈 메뉴, 홈 메뉴에서 각 기능으로 이동한다 */
 enum class Screen { FACE, HOME, PHOTO, CHAM, OMOK, STRETCH }
 
-/** 홈 메뉴에서 이만큼 아무도 화면을 만지지 않으면 다시 얼굴 화면으로 돌아간다 */
-private const val IDLE_TO_FACE_MS = 60_000L
+/**
+ * 이만큼 아무도 화면을 만지지 않으면 사람이 떠난 것으로 보고 얼굴 화면으로 돌아간다.
+ * 게임은 화면을 안 만지고 하는 시간(수비·스트레칭·수 읽기)이 있어 더 넉넉히 기다린다.
+ */
+private fun idleToFaceMs(screen: Screen): Long? = when (screen) {
+    Screen.FACE -> null
+    Screen.HOME, Screen.PHOTO -> 60_000L
+    Screen.CHAM, Screen.OMOK, Screen.STRETCH -> 180_000L
+}
 
 /** temi 사람 감지 — 이 거리(m) 안에 사람이 들어오면 '다가왔다' (0.5~2.0) */
 private const val DETECT_RANGE_M = 1.5f
@@ -74,14 +82,17 @@ class MainActivity : ComponentActivity(),
                     val toHome = { screen = Screen.HOME }
                     val pad = Modifier.padding(innerPadding)
 
-                    // 화면을 만질 때마다 세는 수 — 홈에서 한동안 바뀌지 않으면 얼굴 화면으로 돌아간다
+                    // 화면을 만질 때마다 세는 수 — 한동안 바뀌지 않으면 얼굴 화면으로 돌아간다.
+                    // 게임 화면은 사라질 때 스스로 방을 나간다 (각 Screen 의 DisposableEffect)
                     var touches by remember { mutableIntStateOf(0) }
                     LaunchedEffect(screen, touches) {
-                        if (screen == Screen.HOME) {
-                            delay(IDLE_TO_FACE_MS)
-                            screen = Screen.FACE
-                        }
+                        val wait = idleToFaceMs(screen) ?: return@LaunchedEffect
+                        delay(wait)
+                        screen = Screen.FACE
                     }
+                    // 홈에서 '뒤로' — 앱을 닫지 않고 얼굴 화면으로 (temi 에서 앱이 꺼지면 다시 켜기 어렵다)
+                    BackHandler(enabled = screen == Screen.HOME) { screen = Screen.FACE }
+                    BackHandler(enabled = screen == Screen.FACE) { /* 얼굴 화면이 맨 처음 — 뒤로 가도 앱을 닫지 않는다 */ }
                     Box(
                         Modifier.fillMaxSize().pointerInput(Unit) {
                             awaitPointerEventScope {
