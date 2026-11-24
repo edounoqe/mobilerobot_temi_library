@@ -23,6 +23,11 @@
             android:name="com.robotemi.sdk.metadata.SKILL"
             android:value="@string/app_name" />
 
+        <!-- temi 자체 권한 — 얼굴 화면의 사람 감지(setDetectionModeOn)에 Settings 권한이 필요하다 (첫 실행 때 승인) -->
+        <meta-data
+            android:name="@string/metadata_permissions"
+            android:value="com.robotemi.permission.settings" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
