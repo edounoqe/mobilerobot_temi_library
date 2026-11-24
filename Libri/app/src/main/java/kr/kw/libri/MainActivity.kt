@@ -25,6 +25,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.robotemi.sdk.Robot
 import com.robotemi.sdk.listeners.OnDetectionStateChangedListener
 import com.robotemi.sdk.listeners.OnRobotReadyListener
+import com.robotemi.sdk.permission.OnRequestPermissionResultListener
+import com.robotemi.sdk.permission.Permission
 import kotlinx.coroutines.delay
 import kr.kw.libri.chamchamcham.ChamScreen
 import kr.kw.libri.common.paper
@@ -39,17 +41,25 @@ enum class Screen { FACE, HOME, PHOTO, CHAM, OMOK, STRETCH }
 /** 홈 메뉴에서 이만큼 아무도 화면을 만지지 않으면 다시 얼굴 화면으로 돌아간다 */
 private const val IDLE_TO_FACE_MS = 60_000L
 
+/** temi 사람 감지 — 이 거리(m) 안에 사람이 들어오면 '다가왔다' (0.5~2.0) */
+private const val DETECT_RANGE_M = 1.5f
+private const val REQ_SETTINGS = 7001
+
 /**
  * Libri — 앱을 켜면 얼굴 화면(두 눈)을 띄우고, 화면을 누르면 홈 화면(기능 선택)으로 넘어간다.
- * temi 에서는 로봇 연결 시 상단바에 앱을 등록하고, 사람이 가까이 오면 얼굴이 반긴다
+ * temi 에서는 로봇 연결 시 상단바에 앱을 등록하고 사람 감지 모드를 켠다 → 사람이 가까이 오면 얼굴이 반긴다
  * (폰·AVD 에서는 로봇 콜백이 오지 않을 뿐 그대로 동작한다).
  */
-class MainActivity : ComponentActivity(), OnRobotReadyListener, OnDetectionStateChangedListener {
+class MainActivity : ComponentActivity(),
+    OnRobotReadyListener, OnDetectionStateChangedListener, OnRequestPermissionResultListener {
 
     private val robot: Robot by lazy { Robot.getInstance() }
 
     /** temi 가 앞에 사람이 있다고 알려 온 상태 */
     private var personNear by mutableStateOf(false)
+
+    /** Settings 권한을 거절해도 돌아올 때마다 다시 묻지 않도록 한 번만 */
+    private var askedSettings = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,12 +110,14 @@ class MainActivity : ComponentActivity(), OnRobotReadyListener, OnDetectionState
         super.onStart()
         robot.addOnRobotReadyListener(this)
         robot.addOnDetectionStateChangedListener(this)
+        robot.addOnRequestPermissionResultListener(this)
     }
 
     override fun onStop() {
         super.onStop()
         robot.removeOnRobotReadyListener(this)
         robot.removeOnDetectionStateChangedListener(this)
+        robot.removeOnRequestPermissionResultListener(this)
         personNear = false
     }
 
@@ -113,9 +125,28 @@ class MainActivity : ComponentActivity(), OnRobotReadyListener, OnDetectionState
         if (!isReady) return
         val info = packageManager.getActivityInfo(componentName, PackageManager.GET_META_DATA)
         robot.onStart(info)   // 내 앱을 TEMI 상단바에 등록
+        ensureDetectionMode()
     }
 
-    /** temi 의 사람 감지 — 설정에서 감지 모드가 켜져 있을 때만 불린다 */
+    /** 사람 감지 모드 켜기 — temi Settings 권한이 필요하다 (매니페스트에 선언, 첫 실행 때 승인 창) */
+    private fun ensureDetectionMode() {
+        if (robot.checkSelfPermission(Permission.SETTINGS) != Permission.GRANTED) {
+            if (!askedSettings) {
+                askedSettings = true
+                robot.requestPermissions(listOf(Permission.SETTINGS), REQ_SETTINGS)
+            }
+            return
+        }
+        if (!robot.detectionModeOn) robot.setDetectionModeOn(true, DETECT_RANGE_M)
+    }
+
+    override fun onRequestPermissionResult(permission: Permission, grantResult: Int, requestCode: Int) {
+        if (requestCode == REQ_SETTINGS && grantResult == Permission.GRANTED) {
+            robot.setDetectionModeOn(true, DETECT_RANGE_M)
+        }
+    }
+
+    /** temi 의 사람 감지 — 감지 모드가 켜져 있을 때만 불린다 */
     override fun onDetectionStateChanged(state: Int) {
         personNear = state == OnDetectionStateChangedListener.DETECTED
     }
