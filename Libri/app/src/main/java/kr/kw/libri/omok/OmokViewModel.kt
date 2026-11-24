@@ -217,6 +217,11 @@ class OmokViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 다음 사람에게 앞 사람의 오류 안내('방이 가득 찼어요' 등)가 남지 않게 */
+    fun clearError() {
+        _error.value = null
+    }
+
     fun closeRanking() {
         _rank.value = null
     }
