@@ -46,6 +46,14 @@ import com.robotemi.sdk.permission.Permission
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.runtime.CompositionLocalProvider
+import kr.kw.libri.backend.GameInvites
+import kr.kw.libri.backend.InviteGame
+import kr.kw.libri.backend.InviteMatch
+import kr.kw.libri.backend.LocalGameInvites
+import kr.kw.libri.backend.SERVICE_PLAYING
+import kr.kw.libri.common.IncomingInviteDialog
+import kr.kw.libri.common.IdleGuard
 import kr.kw.libri.backend.FeedbackScreen
 import kr.kw.libri.backend.LibriBackend
 import kr.kw.libri.backend.RobotIdentity
@@ -63,13 +71,12 @@ import kr.kw.libri.ui.theme.LibriTheme
 enum class Screen { FACE, HOME, PHOTO, CHAM, OMOK, STRETCH, FEEDBACK, ROBOT_SETTINGS }
 
 /**
- * 이만큼 아무도 화면을 만지지 않으면 사람이 떠난 것으로 보고 얼굴 화면으로 돌아간다.
- * 게임은 화면을 안 만지고 하는 시간(수비·스트레칭·수 읽기)이 있어 더 넉넉히 기다린다.
+ * 이만큼(1분) 아무도 화면을 만지지 않으면 사람이 떠난 것으로 보고 얼굴 화면(대기모드)으로 돌아간다.
+ * 게임 대기실도 똑같이 1분을 세고, 실제 게임 중에는 각 게임 화면이 HoldIdleTimer 로 타이머를 멈춘다.
  */
 private fun idleToFaceMs(screen: Screen): Long? = when (screen) {
     Screen.FACE, Screen.ROBOT_SETTINGS -> null
-    Screen.HOME, Screen.PHOTO, Screen.FEEDBACK -> 60_000L
-    Screen.CHAM, Screen.OMOK, Screen.STRETCH -> 180_000L
+    Screen.HOME, Screen.PHOTO, Screen.FEEDBACK, Screen.CHAM, Screen.OMOK, Screen.STRETCH -> 60_000L
 }
 
 /** temi 사람 감지 — 이 거리(m) 안에 사람이 들어오면 '다가왔다' (0.5~2.0) */
@@ -111,7 +118,8 @@ class MainActivity : ComponentActivity(),
                     val lifecycle = LocalLifecycleOwner.current.lifecycle
                     var identity by remember { mutableStateOf(RobotIdentity.load(context)) }
                     var feedbackService by rememberSaveable { mutableStateOf("") }
-                    var pairingAvailable by remember { mutableStateOf(false) }
+                    // 기기 간 게임 신청이 성사되면 들어갈 게임방 (해당 게임 화면이 받아서 입장한 뒤 비운다)
+                    var match by remember { mutableStateOf<InviteMatch?>(null) }
                     var presence by remember { mutableStateOf<RobotPresence?>(null) }
                     var uid by remember { mutableStateOf<String?>(null) }
                     var approvedId by remember { mutableStateOf<String?>(null) }
@@ -149,9 +157,10 @@ class MainActivity : ComponentActivity(),
                     }
 
                     val authorized = identity?.id?.let { it == approvedId } == true
-                    val service = when (screen) {
+                    // 실제 게임 중이면 'playing' — 다른 기기가 이 동안에는 게임 신청을 보내지 못한다
+                    val service = if (IdleGuard.held) SERVICE_PLAYING else when (screen) {
                         Screen.PHOTO -> "photo"
-                        Screen.CHAM -> if (pairingAvailable) "cham_lobby" else "chamchamcham"
+                        Screen.CHAM -> "chamchamcham"
                         Screen.OMOK -> "omok"
                         Screen.STRETCH -> "stretch"
                         Screen.FEEDBACK -> "feedback"
@@ -184,6 +193,32 @@ class MainActivity : ComponentActivity(),
 
                     LaunchedEffect(service, presence) { presence?.update(service) }
 
+                    // 게임 신청 — 승인된 로봇이면 다른 기기의 신청을 듣고, 수락되면 그 게임으로 데려간다
+                    val invites = remember(identity, authorized) {
+                        identity?.takeIf { authorized }?.let { me ->
+                            GameInvites(context, me) { m ->
+                                match = m
+                                screen = when (m.game) {
+                                    InviteGame.CHAM -> Screen.CHAM
+                                    InviteGame.OMOK -> Screen.OMOK
+                                }
+                            }
+                        }
+                    }
+                    DisposableEffect(invites, lifecycle) {
+                        val inv = invites ?: return@DisposableEffect onDispose { }
+                        val observer = LifecycleEventObserver { _, event ->
+                            when (event) {
+                                Lifecycle.Event.ON_START -> inv.start()
+                                Lifecycle.Event.ON_STOP -> inv.stop()
+                                else -> Unit
+                            }
+                        }
+                        lifecycle.addObserver(observer)
+                        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) inv.start()
+                        onDispose { lifecycle.removeObserver(observer); inv.stop() }
+                    }
+
                     val toHome = { screen = Screen.HOME }
                     val requestFeedback = { serviceName: String ->
                         feedbackService = serviceName
@@ -192,9 +227,12 @@ class MainActivity : ComponentActivity(),
                     val pad = Modifier.padding(innerPadding)
 
                     // 화면을 만질 때마다 세는 수 — 한동안 바뀌지 않으면 얼굴 화면으로 돌아간다.
+                    // 실제 게임 중(IdleGuard.held)에는 세지 않고, 게임이 끝나면 그때부터 다시 1분을 센다.
                     // 게임 화면은 사라질 때 스스로 방을 나간다 (각 Screen 의 DisposableEffect)
                     var touches by remember { mutableIntStateOf(0) }
-                    LaunchedEffect(screen, touches) {
+                    val gameRunning = IdleGuard.held
+                    LaunchedEffect(screen, touches, gameRunning) {
+                        if (gameRunning) return@LaunchedEffect
                         val wait = idleToFaceMs(screen) ?: return@LaunchedEffect
                         delay(wait)
                         screen = Screen.FACE
@@ -205,6 +243,7 @@ class MainActivity : ComponentActivity(),
                     BackHandler(enabled = screen == Screen.FACE) { /* 얼굴 화면이 맨 처음 — 뒤로 가도 앱을 닫지 않는다 */ }
                     BackHandler(enabled = screen == Screen.ROBOT_SETTINGS || screen == Screen.FEEDBACK, onBack = toHome)
 
+                    CompositionLocalProvider(LocalGameInvites provides invites) {
                     Box(
                         Modifier.fillMaxSize().pointerInput(Unit) {
                             awaitPointerEventScope {
@@ -219,10 +258,14 @@ class MainActivity : ComponentActivity(),
                             Screen.HOME -> HomeScreen(onSelect = { screen = it }, modifier = pad, onRobotSettings = { screen = Screen.ROBOT_SETTINGS })
                             Screen.PHOTO -> PhotoBoothScreen(onExit = toHome, modifier = pad)
                             Screen.CHAM -> ChamScreen(
-                                onExit = { requestFeedback("chamchamcham") }, identity = identity,
-                                authorized = authorized, onPairingAvailability = { pairingAvailable = it }, modifier = pad,
+                                onExit = { requestFeedback("chamchamcham") },
+                                authorized = authorized, modifier = pad,
+                                match = match?.takeIf { it.game == InviteGame.CHAM }, onMatchUsed = { match = null },
                             )
-                            Screen.OMOK -> OmokScreen(onExit = toHome, modifier = pad)
+                            Screen.OMOK -> OmokScreen(
+                                onExit = toHome, modifier = pad,
+                                match = match?.takeIf { it.game == InviteGame.OMOK }, onMatchUsed = { match = null },
+                            )
                             Screen.STRETCH -> StretchScreen(onExit = toHome, modifier = pad)
                             Screen.FEEDBACK -> identity?.let { FeedbackScreen(service = feedbackService, identity = it, authorized = authorized, onExit = toHome, modifier = pad) }
                             Screen.ROBOT_SETTINGS -> Column(pad.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -237,6 +280,12 @@ class MainActivity : ComponentActivity(),
                                 if (identity != null) OutlinedButton(onClick = toHome, modifier = Modifier.fillMaxWidth()) { Text("돌아가기") }
                             }
                         }
+
+                        // 다른 기기가 보낸 게임 신청 — 어느 화면 위에든 수락 / 거절 팝업 (관리자 설정 · 실제 게임 중에는 띄우지 않는다)
+                        if (invites != null && screen != Screen.ROBOT_SETTINGS && !IdleGuard.held) {
+                            IncomingInviteDialog(invites)
+                        }
+                    }
                     }
                 }
             }

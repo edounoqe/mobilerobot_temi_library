@@ -121,6 +121,7 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
 
     fun attack(dir: Dir) {
         val me = _seat.value ?: return
+        if (_room.value.winner != null) return     // 게임이 끝났다
         server?.startRound(me, dir)
     }
 

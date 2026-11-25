@@ -53,7 +53,9 @@ class LibriBackend(context: Context) {
 
     fun pairingTimeOffset(): DatabaseReference = db.getReference(".info/serverTimeOffset")
 
-    fun sendPairingRequest(from: String, to: String, room: String, now: Long, done: (Boolean, String?) -> Unit) {
+    /** @param type 게임 종류 (InviteGame.type — "chamchamcham" | "omok") */
+    fun sendPairingRequest(from: String, to: String, room: String, type: String, now: Long, done: (Boolean, String?) -> Unit) {
+        require(type == "chamchamcham" || type == "omok")
         updatePairing(done) { data ->
             val createdAt = (data.child("createdAt").value as? Number)?.toLong()
             val respondedAt = (data.child("respondedAt").value as? Number)?.toLong()
@@ -63,7 +65,7 @@ class LibriBackend(context: Context) {
                 return@updatePairing false
             }
             data.value = mapOf("fromRobot" to key(from), "toRobot" to key(to), "roomCode" to room,
-                "type" to "chamchamcham", "status" to "pending", "createdAt" to ServerValue.TIMESTAMP)
+                "type" to type, "status" to "pending", "createdAt" to ServerValue.TIMESTAMP)
             true
         }
     }

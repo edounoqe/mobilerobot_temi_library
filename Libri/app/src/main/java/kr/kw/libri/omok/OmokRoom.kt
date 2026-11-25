@@ -13,10 +13,14 @@ import kotlinx.coroutines.flow.update
  *   · 두 사람이 다 앉으면 A 자리가 새 판을 연다. 첫 판은 A 가 흑(선), '한 판 더' 를 하면 흑이 바뀐다.
  *   · 판에는 둔 순서대로 칸 번호만 쌓는다. 누구 차례인지, 누가 이겼는지는 두 기기가 같은 규칙으로 계산한다.
  *   · 기권하거나 도중에 나가면 그 자리의 패배로 끝난다.
+ *   · 한 수에 MOVE_TIME_MS(15초) — 체스처럼, 자기 차례에 시간을 다 쓰면 그 자리의 패배로 끝난다.
  *
  *  방을 어디에 두는지(OmokRoomStore)는 갈아 끼운다 — 기기 2대 대결은 Firebase, 혼자 연습은 기기 안의 메모리.
  *  약속 자체(OmokSession)는 어느 쪽이든 같아서, 단위 테스트는 메모리 방에 두 사람을 앉혀 확인한다.
  */
+
+/** 한 수를 두는 데 쓸 수 있는 시간 — 다 쓰면 진다 */
+const val MOVE_TIME_MS = 15_000L
 
 enum class Seat {
     A, B;
@@ -34,6 +38,7 @@ data class OmokGame(
     val bId: String,
     val moves: List<Int> = emptyList(),     // 둔 순서대로 칸 번호
     val resign: Seat? = null,               // 기권했거나 도중에 나간 자리
+    val timeout: Seat? = null,              // 제한시간을 넘긴 자리
 ) {
     fun stoneOf(seat: Seat): Int = if (seat == black) BLACK else WHITE
     fun seatOf(stone: Int): Seat = if (stone == BLACK) black else black.other
@@ -44,7 +49,7 @@ data class OmokRoom(val a: Player? = null, val b: Player? = null, val game: Omok
     fun player(seat: Seat): Player? = if (seat == Seat.A) a else b
 }
 
-enum class Reason { FIVE, RESIGN, FULL }
+enum class Reason { FIVE, RESIGN, TIMEOUT, FULL }
 
 /** 판의 결과 — winner 가 null 이면 무승부 */
 data class Outcome(val winner: Seat?, val reason: Reason)
@@ -54,6 +59,7 @@ fun outcomeOf(game: OmokGame, view: GameView = replay(game.moves)): Outcome? = w
     view.winner == BLACK || view.winner == WHITE -> Outcome(game.seatOf(view.winner), Reason.FIVE)
     view.winner == DRAW -> Outcome(null, Reason.FULL)
     game.resign != null -> Outcome(game.resign.other, Reason.RESIGN)
+    game.timeout != null -> Outcome(game.timeout.other, Reason.TIMEOUT)
     else -> null
 }
 
@@ -70,6 +76,7 @@ interface OmokRoomStore {
     fun putGame(game: OmokGame)
     fun putMove(gameId: Long, index: Int, cell: Int)
     fun putResign(gameId: Long, seat: Seat)
+    fun putTimeout(gameId: Long, seat: Seat)
     fun close()
 }
 
@@ -106,6 +113,10 @@ class MemoryRoomStore(initial: OmokRoom = OmokRoom()) : OmokRoomStore {
 
     override fun putResign(gameId: Long, seat: Seat) {
         _room.update { r -> if (r.game?.id == gameId) r.copy(game = r.game.copy(resign = seat)) else r }
+    }
+
+    override fun putTimeout(gameId: Long, seat: Seat) {
+        _room.update { r -> if (r.game?.id == gameId) r.copy(game = r.game.copy(timeout = seat)) else r }
     }
 
     override fun close() {}
@@ -182,6 +193,16 @@ class OmokSession(
         val g = myGame(room) ?: return false
         if (outcomeOf(g) != null) return false
         store.putResign(g.id, s)
+        return true
+    }
+
+    /** 제한시간 초과 — 내 차례에 시간을 다 썼을 때 스스로 패배를 적는다 */
+    fun timeout(room: OmokRoom): Boolean {
+        val s = seat ?: return false
+        val g = myGame(room) ?: return false
+        val view = replay(g.moves)
+        if (outcomeOf(g, view) != null || view.turn != g.stoneOf(s)) return false
+        store.putTimeout(g.id, s)
         return true
     }
 

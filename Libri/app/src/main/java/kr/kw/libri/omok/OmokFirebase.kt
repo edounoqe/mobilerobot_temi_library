@@ -110,6 +110,11 @@ class FirebaseRoomStore(context: Context, roomName: String) : OmokRoomStore {
         ref.child("game").child("resign").setValue(seat.name)
     }
 
+    override fun putTimeout(gameId: Long, seat: Seat) {
+        if (_room.value.game?.id != gameId) return
+        ref.child("game").child("timeout").setValue(seat.name)
+    }
+
     override fun close() {
         ref.removeEventListener(listener)
         // 자리를 비우지 못하고 닫히는 경우(오류 등)에도 남지 않게
@@ -142,6 +147,7 @@ class FirebaseRoomStore(context: Context, roomName: String) : OmokRoomStore {
                 bId = g.child("b").value as String,
                 moves = moves,
                 resign = (g.child("resign").value as? String)?.let { Seat.valueOf(it) },
+                timeout = (g.child("timeout").value as? String)?.let { Seat.valueOf(it) },
             )
         }.getOrNull() else null
         return OmokRoom(a = player(s.child("seats").child("A")), b = player(s.child("seats").child("B")), game = game)

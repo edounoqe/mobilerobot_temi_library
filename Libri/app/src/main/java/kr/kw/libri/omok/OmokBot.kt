@@ -4,10 +4,10 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 /** 봇 난이도 — 몇 수 앞까지 읽는지가 다르다 */
-enum class BotLevel(val label: String, val desc: String, internal val depth: Int, internal val width: Int) {
-    EASY("쉬움", "연습용", 0, 0),
-    NORMAL("보통", "한 수 읽기", 2, 12),      // 내 수 + 상대의 응수
-    HARD("어려움", "네 수 읽기", 4, 9),       // 내 수 · 상대 · 내 수 · 상대
+enum class BotLevel(val label: String, internal val depth: Int, internal val width: Int) {
+    EASY("쉬움", 0, 0),
+    NORMAL("보통", 2, 12),      // 내 수 + 상대의 응수
+    HARD("어려움", 4, 9),       // 내 수 · 상대 · 내 수 · 상대
 }
 
 /**

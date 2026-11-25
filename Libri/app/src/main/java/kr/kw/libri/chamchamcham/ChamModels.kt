@@ -11,8 +11,11 @@ import kotlinx.coroutines.flow.StateFlow
  *  1) 공격자가 터치로 방향(LEFT/RIGHT)을 고르면 서버에 라운드를 올린다 (startAt = 지금 + LEAD_MS)
  *  2) 두 기기가 같은 startAt 기준으로 "참(0ms) · 참(700ms) · 참!(1400ms)" 을 재생하고, 마지막 참!에서 손목이 돌아간다
  *  3) 수비자 기기가 마지막 참! 전후(JUDGE 구간)의 고개 방향을 모아 판정 → 결과를 서버에 쓴다
- *     - 손가락 방향과 같은 쪽을 보거나 고개를 돌리지 못하면 → 공격 성공(HIT): 공격자 +1점, 공격권 유지
+ *     - 손가락 방향과 같은 쪽을 보거나 고개를 돌리지 못하면 → 공격 성공(HIT): 수비자 하트 -1, 공격권 유지
  *     - 반대쪽을 보면 → 회피(MISS): 공격권이 넘어간다
+ *  4) 하트(CHAM_MAX_HP 개)를 먼저 모두 잃은 쪽이 진다 → 게임 끝
+ *     서버에는 예전처럼 각 자리의 '공격 성공 수'(score)를 저장하고, 하트는 거기서 계산한다
+ *     (A 의 공격 성공 수 = B 가 잃은 하트 수). 그래서 Firebase 데이터 형식은 그대로다.
  *  방향은 모두 "수비자 화면 기준"이다. 화면 왼쪽을 가리키는 손 = LEFT, 수비자가 자기 왼쪽을 봄 = LEFT
  */
 
@@ -24,6 +27,7 @@ const val JUDGE_START = FINAL_AT - 100L
 const val JUDGE_END = FINAL_AT + 800L
 const val RESULT_SHOW_MS = 2500L   // 결과를 보여 주는 시간
 const val HAND_TURN_DEG = 65f      // 손목 회전 각도
+const val CHAM_MAX_HP = 3          // 하트 개수 — 공격을 당하면 하나씩 줄고, 0 이 되면 진다
 
 enum class Seat {
     A, B;
@@ -51,7 +55,18 @@ data class RoomState(
     val round: Round? = null,
     val joinedA: Boolean = false,
     val joinedB: Boolean = false,
-)
+) {
+    /** 남은 하트 — 상대의 공격 성공 수만큼 줄어든다 */
+    fun hp(seat: Seat): Int = (CHAM_MAX_HP - if (seat == Seat.A) scoreB else scoreA).coerceAtLeast(0)
+
+    /** 상대 하트를 먼저 다 없앤 쪽. 아직 진행 중이면 null */
+    val winner: Seat?
+        get() = when {
+            hp(Seat.B) == 0 -> Seat.A
+            hp(Seat.A) == 0 -> Seat.B
+            else -> null
+        }
+}
 
 /** 게임 서버 — Firebase(온라인) 또는 로컬 봇(혼자 테스트) */
 interface ChamServer {

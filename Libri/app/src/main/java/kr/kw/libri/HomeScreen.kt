@@ -30,6 +30,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kr.kw.libri.common.AdminPinDialog
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import kr.kw.libri.common.BookDoodle
 import kr.kw.libri.common.HandDoodle
 import kr.kw.libri.common.LibriColors
@@ -67,6 +72,8 @@ private val FEATURES = listOf(
 /** 홈 — 기능 선택 메뉴. 각 카드가 해당 Screen 으로 이동한다 */
 @Composable
 fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier, onRobotSettings: () -> Unit) {
+    // '로봇 설정' 은 관리자만 — 누르면 비밀번호부터 묻는다
+    var askPin by remember { mutableStateOf(false) }
     LibriScreen(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val big = maxWidth >= 720.dp            // temi 처럼 넓은 화면 — 두 줄로 크게 (멀리서도 누르기 쉽게)
@@ -90,7 +97,7 @@ fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier, onRobo
                             for (f in row) FeatureCard(f, big, Modifier.weight(1f)) { onSelect(f.screen) }
                         }
                     }
-                    androidx.compose.material3.OutlinedButton(onClick = onRobotSettings) { Text("로봇 설정") }
+                    androidx.compose.material3.OutlinedButton(onClick = { askPin = true }) { Text("로봇 설정 (관리자)") }
                     // 책의 쪽 번호
                     Text(
                         "— 1 —", color = LibriColors.Faint, fontSize = 14.sp, fontFamily = FontFamily.Serif,
@@ -99,6 +106,7 @@ fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier, onRobo
                 }
             }
         }
+        if (askPin) AdminPinDialog(onSuccess = { askPin = false; onRobotSettings() }, onDismiss = { askPin = false })
     }
 }
 

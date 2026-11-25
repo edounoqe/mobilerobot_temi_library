@@ -20,6 +20,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // temi CPU(armeabi-v7a)용 네이티브 라이브러리만 넣는다 — APK 143MB → 약 60MB 로 Wi-Fi 설치가 빨라진다.
+        // PC 에뮬레이터(x86_64)에서도 돌리려면: gradle assembleDebug -Plibri.emulator=true
+        ndk {
+            abiFilters += if (project.findProperty("libri.emulator") == "true") listOf("armeabi-v7a", "x86_64") else listOf("armeabi-v7a")
+        }
     }
 
     buildTypes {

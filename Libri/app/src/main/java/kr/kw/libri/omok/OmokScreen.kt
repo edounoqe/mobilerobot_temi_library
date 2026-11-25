@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -20,6 +21,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +31,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -38,9 +43,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
+import kr.kw.libri.backend.InviteGame
+import kr.kw.libri.backend.InviteMatch
+import kr.kw.libri.common.MultiplayerPanel
 import kr.kw.libri.common.LibriButton
 import kr.kw.libri.common.LibriButtonStyle
 import kr.kw.libri.common.LibriConfirmButton
+import kr.kw.libri.common.HoldIdleTimer
 import kr.kw.libri.common.LeaveOnDispose
 import kr.kw.libri.common.LibriColors
 import kr.kw.libri.common.LibriFonts
@@ -66,8 +75,17 @@ private val TURN_FILL = Color(0xFFFFF1B8)       // 차례인 사람의 이름표
 fun OmokScreen(
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
+    match: InviteMatch? = null,
+    onMatchUsed: () -> Unit = {},
     vm: OmokViewModel = viewModel(),
 ) {
+    // 기기 간 신청이 성사됐다 — 두 기기가 같은 방(신청 방 코드)에 들어간다. 먼저 들어온 쪽이 흑
+    LaunchedEffect(match?.id) {
+        val m = match ?: return@LaunchedEffect
+        onMatchUsed()
+        vm.closeRanking()
+        vm.start(OmokMode.ONLINE, vm.preferredName.ifBlank { vm.suggestedName }, m.room)
+    }
     val seat by vm.seat.collectAsStateWithLifecycle()
     val rank by vm.rank.collectAsStateWithLifecycle()
     val me = seat
@@ -95,8 +113,8 @@ fun OmokScreen(
 @Composable
 private fun OmokLobby(vm: OmokViewModel, onExit: () -> Unit, modifier: Modifier) {
     var online by rememberSaveable { mutableStateOf(false) }
-    var name by rememberSaveable { mutableStateOf(vm.myName.value.ifBlank { vm.suggestedName }) }
-    var roomName by rememberSaveable { mutableStateOf("libri") }
+    var name by rememberSaveable { mutableStateOf(vm.preferredName.ifBlank { vm.myName.value.ifBlank { vm.suggestedName } }) }
+    LaunchedEffect(name) { vm.preferredName = name }       // 신청이 성사돼 바로 들어갈 때도 이 이름을 쓴다
     var level by rememberSaveable { mutableStateOf(BotLevel.NORMAL) }
     val joining by vm.joining.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
@@ -118,14 +136,14 @@ private fun OmokLobby(vm: OmokViewModel, onExit: () -> Unit, modifier: Modifier)
         LibriLabel("누구와 할까요?")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             LibriButton(
-                "혼자 연습", { online = false }, Modifier.weight(1f),
+                "Single Play", { online = false }, Modifier.weight(1f),
                 style = if (!online) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
-                minHeight = 68.dp, sub = "봇과 대결",
+                minHeight = 68.dp, sub = "혼자 · 봇과 대결",
             )
             LibriButton(
-                "기기 2대로 대결", { online = true }, Modifier.weight(1f),
+                "Multi Play", { online = true }, Modifier.weight(1f),
                 style = if (online) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
-                minHeight = 68.dp, sub = "온라인 · 랭킹",
+                minHeight = 68.dp, sub = "기기 2대 · 랭킹",
             )
         }
         if (!online) {
@@ -135,7 +153,7 @@ private fun OmokLobby(vm: OmokViewModel, onExit: () -> Unit, modifier: Modifier)
                     LibriButton(
                         l.label, { level = l }, Modifier.weight(1f),
                         style = if (level == l) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
-                        minHeight = 62.dp, fontSize = 19, sub = l.desc,
+                        minHeight = 62.dp, fontSize = 19,
                     )
                 }
             }
@@ -149,24 +167,20 @@ private fun OmokLobby(vm: OmokViewModel, onExit: () -> Unit, modifier: Modifier)
                 colors = libriTextFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
-                value = roomName,
-                onValueChange = { roomName = it.trim() },
-                label = { Text("방 이름 (두 기기가 같게)") },
-                singleLine = true,
-                colors = libriTextFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // 대결할 기기를 골라 신청 — 상대가 수락하면 MainActivity 가 두 기기를 같은 방에 넣는다
+            MultiplayerPanel(InviteGame.OMOK)
         }
         error?.let { Text(it, color = LibriColors.Stamp, fontSize = 15.sp, lineHeight = 21.sp) }
 
-        LibriButton(
-            if (joining) "연결하는 중…" else "시작하기",
-            { vm.start(if (online) OmokMode.ONLINE else OmokMode.BOT, name, roomName, level) },
-            Modifier.fillMaxWidth().padding(top = 4.dp),
-            style = LibriButtonStyle.COLOR, color = LibriColors.Mint, enabled = !joining, minHeight = 84.dp, fontSize = 26,
-            sub = if (online) "먼저 들어온 사람이 흑(선)을 잡아요" else "내가 흑(선)으로 시작해요",
-        )
+        if (!online || joining) {
+            LibriButton(
+                if (joining) "연결하는 중…" else "시작하기",
+                { vm.start(OmokMode.BOT, name, "", level) },
+                Modifier.fillMaxWidth().padding(top = 4.dp),
+                style = LibriButtonStyle.COLOR, color = LibriColors.Mint, enabled = !joining, minHeight = 84.dp, fontSize = 26,
+                sub = if (joining) null else "내가 흑(선)으로 시작해요",
+            )
+        }
         LibriButton("랭킹 보기", { vm.openRanking() }, Modifier.fillMaxWidth(), minHeight = 56.dp, fontSize = 19)
     }
 }
@@ -177,7 +191,6 @@ private fun OmokLobby(vm: OmokViewModel, onExit: () -> Unit, modifier: Modifier)
 private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
     val room by vm.room.collectAsStateWithLifecycle()
     val mode by vm.mode.collectAsStateWithLifecycle()
-    val roomName by vm.roomName.collectAsStateWithLifecycle()
     val myName by vm.myName.collectAsStateWithLifecycle()
     val online = mode == OmokMode.ONLINE
 
@@ -189,6 +202,19 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
     val myStone = game?.stoneOf(me) ?: BLACK
     val playing = game != null && outcome == null && opponent != null
     val myTurn = playing && view.turn == myStone
+    // 실제 대국 중에는 대기모드 타이머를 멈춘다 (상대 기다리기 · 결과 화면은 센다)
+    HoldIdleTimer(playing)
+
+    // 이번 수의 남은 시간 (초) — 15초 제한, 다 쓰면 진다
+    val deadline by vm.deadline.collectAsStateWithLifecycle()
+    val leftMs by produceState(MOVE_TIME_MS, deadline) {
+        val end = deadline ?: return@produceState
+        while (true) {
+            value = (end - System.currentTimeMillis()).coerceAtLeast(0L)
+            if (value == 0L) break
+            withFrameMillis { }
+        }
+    }
 
     // 놓아 볼 자리 — 한 번 누르면 표시, 같은 자리를 한 번 더 누르면 놓는다 (잘못 누른 수를 막는다)
     var ghost by remember(game?.id, view.count) { mutableIntStateOf(-1) }
@@ -228,6 +254,9 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
             }
         }
     }
+    val clock: @Composable (Modifier) -> Unit = { at ->
+        if (playing && deadline != null) MoveClock(leftMs, myTurn, at)
+    }
     val status: @Composable (Modifier) -> Unit = { at ->
         when {
             outcome != null -> ResultCard(
@@ -235,7 +264,7 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
                 onRematch = { vm.rematch() }, onRanking = if (online) ({ vm.openRanking() }) else null,
             )
             opponent == null -> StatusCard(
-                at, "상대를 기다리는 중…", sub = "다른 기기에서 방 이름 「$roomName」 (으)로 들어와 주세요",
+                at, "상대를 기다리는 중…", sub = "상대 기기가 게임방에 들어오고 있어요",
             )
             game == null -> StatusCard(at, "판을 펴는 중…")
             myTurn -> StatusCard(
@@ -266,7 +295,7 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
             }
         }
     }
-    val label = if (online) "기기 2대 대결 · 방 「$roomName」" else "혼자 연습"
+    val label = if (online) "Multi Play" else "Single Play (봇)"
 
     LibriScreen(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -280,6 +309,7 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
                             LibriConfirmButton("나가기", "정말 나갈까요?", { vm.leave() }, needConfirm = playing)
                         }
                         players(Modifier.fillMaxWidth(), true)
+                        clock(Modifier.fillMaxWidth())
                         status(Modifier.fillMaxWidth())
                         Spacer(Modifier.weight(1f))
                         actions(Modifier.fillMaxWidth())
@@ -294,12 +324,41 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
                     ) {
                         players(Modifier.fillMaxWidth(), false)
                         board(Modifier.fillMaxWidth())
+                        clock(Modifier.fillMaxWidth())
                         status(Modifier.fillMaxWidth())
                         actions(Modifier.fillMaxWidth())
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * 이번 수의 남은 시간 — 숫자와 줄어드는 막대. 5초 남으면 빨갛게 바뀐다.
+ * @param mine 내 차례인지 (상대 차례면 옅게)
+ */
+@Composable
+private fun MoveClock(leftMs: Long, mine: Boolean, modifier: Modifier) {
+    val sec = ((leftMs + 999) / 1000).toInt()
+    val urgent = sec <= 5
+    val color = if (urgent) LibriColors.Stamp else if (mine) LibriColors.Ink else LibriColors.Pencil
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            if (mine) "내 시간" else "상대 시간", fontSize = 16.sp, fontFamily = LibriFonts.Round,
+            color = if (mine) LibriColors.Ink else LibriColors.Pencil,
+        )
+        Canvas(Modifier.weight(1f).height(16.dp)) {
+            val r = CornerRadius(size.height / 2f)
+            drawRoundRect(LibriColors.Card, cornerRadius = r)
+            val f = (leftMs.toFloat() / MOVE_TIME_MS).coerceIn(0f, 1f)
+            if (f > 0f) drawRoundRect(
+                if (urgent) LibriColors.Coral else if (mine) LibriColors.Mint else LibriColors.Faint,
+                size = Size(size.width * f, size.height), cornerRadius = r,
+            )
+            drawRoundRect(LibriColors.Ink, cornerRadius = r, style = Stroke(1.6.dp.toPx()))
+        }
+        Text("${sec}초", fontSize = if (urgent) 26.sp else 22.sp, fontFamily = LibriFonts.Round, color = color)
     }
 }
 
@@ -370,6 +429,7 @@ private fun ResultCard(
                     when (outcome.reason) {
                         Reason.FIVE -> if (won) "다섯 알을 먼저 이었어요" else "상대가 다섯 알을 이었어요"
                         Reason.RESIGN -> if (!won) "기권했어요" else if (opponentLeft) "상대가 나갔어요" else "상대가 기권했어요"
+                        Reason.TIMEOUT -> if (won) "상대가 제한시간 ${MOVE_TIME_MS / 1000}초를 넘겼어요" else "제한시간 ${MOVE_TIME_MS / 1000}초를 넘겼어요"
                         Reason.FULL -> "판이 가득 찼어요"
                     },
                     fontSize = 16.sp, color = LibriColors.Pencil,

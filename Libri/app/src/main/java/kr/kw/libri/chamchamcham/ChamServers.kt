@@ -325,6 +325,7 @@ class LocalChamServer(private val scope: CoroutineScope, private val bot: Seat) 
 
     private fun botStep() {
         val s = _state.value
+        if (s.winner != null) return          // 게임이 끝났으면 '다시 하기' 전까지 쉰다
         val now = serverNow()
         val r = s.round
         // 봇 차례 공격 — 이전 결과를 다 보여 준 뒤

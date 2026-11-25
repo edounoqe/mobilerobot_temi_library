@@ -71,8 +71,20 @@ class OmokViewModel(app: Application) : AndroidViewModel(app) {
     private val _roomName = MutableStateFlow("")
     val roomName: StateFlow<String> = _roomName.asStateFlow()
 
+    /** 대기실에 적어 둔 이름 — 신청이 성사돼 바로 방에 들어갈 때 쓴다 */
+    var preferredName: String = ""
+
     private val _myName = MutableStateFlow("")
     val myName: StateFlow<String> = _myName.asStateFlow()
+
+    /**
+     * 지금 차례의 제한시간이 끝나는 시각 (이 기기 시계, ms). 두는 중이 아니면 null.
+     * 수가 놓일 때마다(또는 새 판·상대 입장 때) 이 기기에서 새로 15초를 잰다 — 두 기기 시계를 맞출 필요가 없다.
+     */
+    private val _deadline = MutableStateFlow<Long?>(null)
+    val deadline: StateFlow<Long?> = _deadline.asStateFlow()
+    private var clockKey = ""
+    private var clockJob: Job? = null
 
     private val _rank = MutableStateFlow<RankState?>(null)      // null = 랭킹 화면을 열지 않음
     val rank: StateFlow<RankState?> = _rank.asStateFlow()
@@ -106,6 +118,7 @@ class OmokViewModel(app: Application) : AndroidViewModel(app) {
                     _room.value = r
                     se.sync(r)
                     botStep(r)
+                    clockStep(r)
                     recordIfOver(r)
                 }
             }
@@ -147,6 +160,9 @@ class OmokViewModel(app: Application) : AndroidViewModel(app) {
         }
         roomJob?.cancel()
         botJob?.cancel()
+        clockJob?.cancel()
+        clockKey = ""
+        _deadline.value = null
         st?.close()
         store = null
         session = null
@@ -166,6 +182,35 @@ class OmokViewModel(app: Application) : AndroidViewModel(app) {
         session?.rematch(_room.value)
     }
 
+    // ── 제한시간 ──
+
+    /** 차례가 바뀌면 15초를 새로 재고, 내 차례에 시간이 다 되면 내 패배(시간 초과)를 적는다 */
+    private fun clockStep(r: OmokRoom) {
+        val s = _seat.value ?: session?.seat ?: return
+        val g = r.game?.takeIf { it.idOf(s) == myId }
+        val view = g?.let { replay(it.moves) }
+        val running = g != null && view != null && outcomeOf(g, view) == null && r.player(s.other) != null
+        if (!running) {
+            clockJob?.cancel()
+            clockKey = ""
+            _deadline.value = null
+            return
+        }
+        val key = "${g!!.id}-${view!!.count}"
+        if (key == clockKey) return
+        clockKey = key
+        val end = System.currentTimeMillis() + MOVE_TIME_MS
+        _deadline.value = end
+        clockJob?.cancel()
+        // 봇 차례는 봇이 금방 두므로 재지 않는다 — 내 차례일 때만 시간 초과를 적는다
+        if (view.turn != g.stoneOf(s)) return
+        clockJob = viewModelScope.launch {
+            delay(MOVE_TIME_MS)
+            val now = store?.room?.value ?: return@launch
+            if (clockKey == key) session?.timeout(now)
+        }
+    }
+
     // ── 봇 ──
 
     private fun botStep(r: OmokRoom) {
@@ -181,7 +226,7 @@ class OmokViewModel(app: Application) : AndroidViewModel(app) {
             delay(BOT_THINK_MS)
             val cell = withContext(Dispatchers.Default) { OmokBot.pick(view.cells.copyOf(), view.turn, botLevel) }
             val now = store?.room?.value?.game
-            if (cell >= 0 && now != null && now.id == g.id && now.moves.size == view.count && now.resign == null) {
+            if (cell >= 0 && now != null && now.id == g.id && now.moves.size == view.count && outcomeOf(now) == null) {
                 store?.putMove(g.id, view.count, cell)
             }
         }

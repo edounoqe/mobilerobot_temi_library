@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kr.kw.libri.common.HoldIdleTimer
 import kr.kw.libri.common.LibriButton
 import kr.kw.libri.common.LibriButtonStyle
 import kr.kw.libri.common.LeaveOnDispose
@@ -66,6 +67,7 @@ import kr.kw.libri.common.LibriTopBar
 import kr.kw.libri.common.NoteText
 import kr.kw.libri.common.SketchCard
 import kr.kw.libri.common.SketchSurface
+import kr.kw.libri.common.SoundToggle
 import kr.kw.libri.common.Stamp
 import kr.kw.libri.common.StretchDoodle
 import kr.kw.libri.common.TitleText
@@ -168,9 +170,9 @@ private fun StretchLobby(vm: StretchViewModel, onExit: () -> Unit, modifier: Mod
                 "튜토리얼 영상", { vm.start(demo = true) }, Modifier.weight(1.25f),
                 minHeight = 64.dp, sub = "카메라 없이 구경하기",
             )
-            LibriButton(
-                if (vm.soundOn) "효과음 켜짐" else "효과음 꺼짐", { vm.toggleSound() }, Modifier.weight(1f),
-                style = LibriButtonStyle.FLAT, minHeight = 64.dp, fontSize = 17, sub = "눌러서 바꾸기",
+            SoundToggle(
+                vm.soundOn, { vm.toggleSound() }, Modifier.weight(1f),
+                label = "효과음", minHeight = 64.dp, fontSize = 17, sub = "눌러서 바꾸기",
             )
         }
     }
@@ -206,6 +208,8 @@ private fun StretchGame(vm: StretchViewModel, s: StretchSession, modifier: Modif
         while (true) withFrameNanos { vm.onFrame(it) }
     }
     KeepScreenOn()
+    // 카운트다운 · 플레이 중에는 대기모드 타이머를 멈춘다 (준비 · 결과 화면은 센다)
+    HoldIdleTimer(vm.phase == Phase.COUNTDOWN || vm.phase == Phase.PLAYING)
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val wide = maxWidth > maxHeight
@@ -320,10 +324,7 @@ private fun TopBar(vm: StretchViewModel, s: StretchSession, modifier: Modifier) 
                 if (vm.combo >= 2) NoteText("${vm.combo}연속 통과!", size = 21.sp, color = LibriColors.Stamp)
             }
         }
-        LibriButton(
-            if (vm.soundOn) "소리 켬" else "소리 끔", { vm.toggleSound() },
-            style = LibriButtonStyle.FLAT, minHeight = 46.dp, fontSize = 16,
-        )
+        SoundToggle(vm.soundOn, { vm.toggleSound() })
     }
 }
 

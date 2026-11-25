@@ -13,7 +13,7 @@
         "floor": { ".validate": "newData.isString()" },
         "online": { ".validate": "newData.val() === true" },
         "busy": { ".validate": "newData.isBoolean()" },
-        "currentService": { ".validate": "newData.val().matches(/^(idle|photo|cham_lobby|chamchamcham|eye_work|omok|stretch|feedback|settings)$/)" },
+        "currentService": { ".validate": "newData.val().matches(/^(idle|playing|photo|cham_lobby|chamchamcham|eye_work|omok|stretch|feedback|settings)$/)" },
         "updatedAt": { ".validate": "newData.val() === now" },
         "$other": { ".validate": false }
       }
@@ -26,7 +26,7 @@
         "fromRobot": { ".validate": "newData.isString()" },
         "toRobot": { ".validate": "newData.isString()" },
         "roomCode": { ".validate": "newData.val().matches(/^invite[a-f0-9]{32}$/)" },
-        "type": { ".validate": "newData.val() === 'chamchamcham'" },
+        "type": { ".validate": "newData.val() === 'chamchamcham' || newData.val() === 'omok'" },
         "status": { ".validate": "newData.isString()" },
         "createdAt": { ".validate": "newData.isNumber()" },
         "respondedAt": { ".validate": "newData.isNumber()" },
