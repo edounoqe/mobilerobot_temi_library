@@ -1,0 +1,64 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "robotAccess": {
+      "$uid": { ".read": "auth != null && auth.uid === $uid" }
+    },
+    "robots": {
+      ".read": "auth != null && (root.child('robotAccess').child(auth.uid).val() === 'temi_L' || root.child('robotAccess').child(auth.uid).val() === 'temi_1')",
+      "$robot": {
+        ".write": "auth != null && ($robot === 'temi_L' || $robot === 'temi_1') && root.child('robotAccess').child(auth.uid).val() === $robot",
+        ".validate": "newData.hasChildren(['floor', 'online', 'busy', 'currentService', 'updatedAt']) && ( ($robot === 'temi_L' && newData.child('floor').val() === 'L') || ($robot === 'temi_1' && newData.child('floor').val() === '1') ) && newData.child('busy').val() === (newData.child('currentService').val() !== 'idle')",
+        "floor": { ".validate": "newData.isString()" },
+        "online": { ".validate": "newData.val() === true" },
+        "busy": { ".validate": "newData.isBoolean()" },
+        "currentService": { ".validate": "newData.val().matches(/^(idle|photo|cham_lobby|chamchamcham|eye_work|stretch|feedback|settings)$/)" },
+        "updatedAt": { ".validate": "newData.val() === now" },
+        "$other": { ".validate": false }
+      }
+    },
+    "requests": {
+      "pair_temi_L_temi_1": {
+        ".read": "auth != null && (root.child('robotAccess').child(auth.uid).val() === 'temi_L' || root.child('robotAccess').child(auth.uid).val() === 'temi_1')",
+        ".write": "auth != null && newData.exists() && ((newData.child('status').val() === 'pending' && newData.child('fromRobot').val() === root.child('robotAccess').child(auth.uid).val() && newData.child('createdAt').val() === now && !newData.child('respondedAt').exists() && (!data.exists() || data.child('status').val() === 'rejected' || data.child('status').val() === 'cancelled' || (data.child('status').val() === 'pending' && now - data.child('createdAt').val() >= 60000) || (data.child('status').val() === 'accepted' && now - data.child('respondedAt').val() >= 10000))) || (data.child('status').val() === 'pending' && newData.child('fromRobot').val() === data.child('fromRobot').val() && newData.child('toRobot').val() === data.child('toRobot').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('roomCode').val() === data.child('roomCode').val() && newData.child('respondedAt').val() === now && ((newData.child('status').val() === 'cancelled' && data.child('fromRobot').val() === root.child('robotAccess').child(auth.uid).val()) || ((newData.child('status').val() === 'accepted' || newData.child('status').val() === 'rejected') && now - data.child('createdAt').val() < 60000 && data.child('toRobot').val() === root.child('robotAccess').child(auth.uid).val()))))",
+        ".validate": "newData.hasChildren(['fromRobot', 'toRobot', 'roomCode', 'type', 'status', 'createdAt']) && ((newData.child('fromRobot').val() === 'temi_L' && newData.child('toRobot').val() === 'temi_1') || (newData.child('fromRobot').val() === 'temi_1' && newData.child('toRobot').val() === 'temi_L'))",
+        "fromRobot": { ".validate": "newData.isString()" },
+        "toRobot": { ".validate": "newData.isString()" },
+        "roomCode": { ".validate": "newData.val().matches(/^invite[a-f0-9]{32}$/)" },
+        "type": { ".validate": "newData.val() === 'chamchamcham'" },
+        "status": { ".validate": "newData.isString()" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "respondedAt": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+    "rooms": {
+      "$room": {
+        ".read": "auth != null && (root.child('robotAccess').child(auth.uid).val() === 'temi_L' || root.child('robotAccess').child(auth.uid).val() === 'temi_1')",
+        ".write": "auth != null && (root.child('robotAccess').child(auth.uid).val() === 'temi_L' || root.child('robotAccess').child(auth.uid).val() === 'temi_1')",
+        "players": {
+          "$seat": {
+            ".validate": "($seat === 'A' || $seat === 'B') && newData.hasChildren()",
+            "$session": { ".validate": "$session.matches(/^[a-f0-9]{32}$/) && newData.val() === true" }
+          }
+        },
+        "attacker": { ".validate": "newData.val() === 'A' || newData.val() === 'B'" },
+        "score": {
+          "$seat": { ".validate": "($seat === 'A' || $seat === 'B') && newData.isNumber() && newData.val() >= 0" }
+        },
+        "round": {
+          ".validate": "newData.hasChildren(['id', 'attacker', 'dir', 'startAt']) && newData.parent().child('players').hasChildren(['A', 'B'])",
+          "id": { ".validate": "newData.isNumber()" },
+          "attacker": { ".validate": "newData.val() === 'A' || newData.val() === 'B'" },
+          "dir": { ".validate": "newData.val() === 'LEFT' || newData.val() === 'RIGHT'" },
+          "startAt": { ".validate": "newData.isNumber()" },
+          "result": { ".validate": "newData.val() === 'HIT' || newData.val() === 'MISS'" },
+          "look": { ".validate": "newData.val() === 'LEFT' || newData.val() === 'RIGHT' || newData.val() === 'CENTER'" },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

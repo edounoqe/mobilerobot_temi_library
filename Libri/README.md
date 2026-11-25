@@ -154,25 +154,52 @@ Libri/app/src/main/java/kr/kw/libri/
 
 ## 9. 실행 방법 (Libri 앱)
 
+### 로봇 없이 테스트 및 빌드
+
+저장소 최상위에서 Android SDK와 Java 25(또는 Android Studio의 Java 25 JBR)를 설정한 뒤 실행합니다.
+
+```bash
+cd Libri
+./gradlew testDebugUnitTest assembleDebug
+```
+
+Windows에서는 `gradlew.bat testDebugUnitTest assembleDebug`를 실행합니다. Kotlin 점수 테스트 결과는 `app/build/reports/tests/testDebugUnitTest/index.html`, APK는 `app/build/outputs/apk/debug/app-debug.apk`에 생성됩니다.
+
+Firebase 규칙 검증은 Node.js 22와 Java가 설치된 환경에서 **저장소 최상위**에서 실행합니다. 로컬의 Auth·Realtime Database·Firestore 에뮬레이터에 테스트 데이터를 넣고, 자리 경합, 요청 수락·취소·만료, 설문 검증과 접근 차단을 확인합니다.
+
+```bash
+npx --yes firebase-tools@15.37.0 emulators:exec --project demo-libri --only auth,database,firestore "node firebase/tests/backend.mjs"
+```
+
+Firebase 테스트는 `demo-libri` 프로젝트의 로컬 에뮬레이터 전용입니다. 두 대의 Android 앱이 주고받는 화면과 네트워크 끊김 처리는 실제 기기에서 별도로 확인합니다.
+
+### Android Studio에서 실행
+
 1. Android Studio → **File → Open → `C:\temi\Libri`**
 2. 기기(temi / 폰 / AVD) 선택 → **Run**
 3. 대기실에서 모드와 자리를 고르기
    - **혼자 테스트 (봇)**: 설정 없이 기기 1대로 바로 가능
-   - **온라인**: 기기 2대, 같은 방 코드, 서로 다른 자리(A/B)
+   - **온라인 요청**: L층과 1층 로봇이 모두 온라인 대기실에 들어갑니다. 한쪽에서 요청하고 상대가 수락하면 같은 방으로 자동 입장합니다.
+   - **수동 입장**: 같은 방 코드와 서로 다른 자리(A/B)를 선택합니다.
+   - 같은 자리를 먼저 입장한 기기가 차지합니다. 상대가 나가거나 연결이 끊기면 진행 중인 라운드를 취소하고, 이미 확정된 점수는 상대가 다시 입장할 때 유지합니다. 앱을 백그라운드로 보내면 온라인 방에서 나갑니다. 빈 방에 새로 입장하면 점수가 초기화됩니다.
+   - 온라인 플레이를 시작하기 전에 두 기기의 APK와 Realtime Database 규칙을 함께 업데이트하세요. 구버전이 남긴 자리 정보가 방을 막으면 새 방 코드를 사용하세요.
 
 <details>
 <summary><b>Firebase 설정 (온라인 모드)</b></summary>
 
-1. Firebase 콘솔에서 프로젝트 생성 → Android 앱 추가 (패키지 이름 `kr.kw.libri`)
-2. Realtime Database 생성 (테스트 모드)
-3. `Libri/local.properties` 에 추가 — git 에 올라가지 않습니다
+1. Firebase 프로젝트의 Android 앱 패키지 이름은 `kr.kw.libri`입니다.
+2. 앱의 `app/google-services.json`과 `strings.xml`의 Realtime Database URL을 사용합니다.
+3. Firebase Authentication의 로그인 제공업체에서 **익명**을 활성화합니다. 로봇이 계속 같은 UID를 쓰도록 익명 계정 자동 정리는 사용하지 않습니다.
+4. 각 기기에서 층을 지정하고 **홈 → 로봇 설정**에 표시된 기기 UID를 확인합니다. Firebase 콘솔에서 UID를 층에 맞게 양쪽에 등록합니다.
 
-```properties
-firebase.dbUrl=https://<프로젝트>-default-rtdb.<지역>.firebasedatabase.app
-firebase.apiKey=<google-services.json 의 api_key.current_key>
-firebase.appId=<google-services.json 의 mobilesdk_app_id>
-firebase.projectId=<project_id>
-```
+   | 저장 위치 | L층 | 1층 |
+   |---|---|---|
+   | Realtime Database의 `robotAccess/{UID}` | 문자열 `temi_L` | 문자열 `temi_1` |
+   | Firestore의 `robotAccess/{UID}` 문서 | `robotId` 문자열 `temi_L` | `robotId` 문자열 `temi_1` |
+
+5. 기존 원격 규칙과 호환되는지 확인한 뒤 저장소 최상위에서 `firebase deploy --only database,firestore:rules --project mobilerobot-temi-library`로 배포합니다. 기존 설치본은 인증 기능이 포함된 APK로 함께 업데이트합니다. 두 기기에서 **Firebase 승인 다시 확인**을 누릅니다.
+
+기기를 교체하거나 앱 데이터를 지우면 새 UID를 등록합니다. 사용하지 않는 UID는 두 데이터베이스에서 제거하고, Realtime Database에 이전 로봇 상태가 남아 있다면 해당 로봇 노드를 콘솔에서 정리합니다. 게임방은 승인된 두 팀 로봇이 공유하며, 방 안의 A/B 자리 점유는 로봇 인증과 별도로 관리됩니다.
 </details>
 
 <details>
@@ -214,6 +241,18 @@ supabase.bucket=photos
 - Supabase Storage: 네컷 사진 임시 보관 및 QR 다운로드.
 - 사진 버킷: `temi_photo`. 프로젝트 URL 및 공개용 publishable key는 앱 리소스에 설정되어 있습니다. 이 키는 비밀이 아니며 버킷의 접근 제어를 대체하지 않습니다.
 - `LibriFirebase.realtimeDatabase(context)`는 지역별 데이터베이스 URL을 명시적으로 사용합니다.
-- Firebase 멀티플레이 코드는 구현되어 있으며 실제 기기 통신 검증이 필요합니다. Supabase 업로드는 아직 구현되지 않았습니다.
+- Firebase 멀티플레이 및 만족도 제출 코드는 실제 기기와 보안 규칙을 이용한 검증이 필요합니다. Supabase 업로드는 아직 구현되지 않았습니다.
+
+### 백엔드 API와 현재 범위
+
+- 앱 최초 실행 시 운영자가 층을 선택하면 기기에 저장됩니다. L층은 `temi_L`, 1층은 `temi_1`이며 홈의 **로봇 설정**에서 변경할 수 있습니다. 각 ID는 한 기기에만 배정해야 합니다.
+- 앱이 보이는 동안 `robots/{로봇ID}`에 층·현재 서비스·사용 중 여부를 기록합니다. 화면이 홈이면 `idle`, 게임·눈 운동·설문 등에서는 사용 중으로 표시합니다. 앱이 중지되거나 연결이 끊기면 해당 상태 항목을 제거합니다. 재접속 시 다시 등록합니다.
+- `LibriBackend.observePresence` / `RobotPresence.update` / `close`: 로봇 상태 등록·변경·해제. 호출자가 로봇 ID와 층을 지정하며 종료 시 `close()`를 호출해야 합니다.
+- `observeRobots`, `observeIncomingRequests`: 변경 감지. 화면 종료 시 반환된 reference/query에서 `removeEventListener(listener)`를 호출합니다.
+- 참참참 온라인 대기실은 상대 층 로봇의 상태를 표시합니다. 두 로봇의 요청은 `requests/pair_temi_L_temi_1`에서 관리하며, 요청을 보낸 쪽은 A, 수락한 쪽은 B로 입장합니다. 응답 대기 시간은 60초이며 보낸 쪽에서 취소할 수 있습니다.
+- 요청 흐름을 테스트하려면 `robots` 상태 조회, 위 요청 경로의 읽기·쓰기, `rooms/{방코드}` 접근을 허용하는 팀 테스트용 Firebase 규칙이 필요합니다.
+- `saveFeedback`: 1~5점, 서비스·로봇·층을 Firestore `feedback`에 저장합니다. 참참참과 눈 운동을 나갈 때 선택적으로 제출할 수 있으며 로봇 ID와 층은 기기 설정을 사용합니다.
+- `recordUsage`: Firestore `usage_events`에 시작·완료 이벤트를 저장합니다. 호출 및 집계 화면은 아직 연결되지 않았습니다.
+- 저장소 최상위 `firebase/`에 로봇 인증용 보안 규칙을 관리합니다. 온라인 기능은 승인된 UID와 기기의 층 설정이 일치할 때 사용할 수 있으며, 사진은 Supabase에서 관리합니다.
 
 사진은 비공개 버킷과 만료되는 다운로드 링크를 사용하고 업로드 후 1시간이 지난 파일은 서버에서 Storage API로 삭제하도록 구성해야 합니다. 링크 만료만으로는 사진이 삭제되지 않습니다. 스케줄러 주기에 따라 삭제 시점이 1시간보다 늦어질 수 있으며 실패 시 재시도와 모니터링이 필요합니다. 이 삭제 작업은 아직 배포되지 않았습니다. Supabase 비밀 키나 서비스 역할 키를 Android 앱이나 Git에 넣지 마세요.

@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function validRobot(data) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/robotAccess/$(request.auth.uid)).data.robotId == data.robotId
+        && ((data.robotId == 'temi_L' && data.floor == 'L')
+            || (data.robotId == 'temi_1' && data.floor == '1'));
+    }
+
+    function validService(feature) {
+      return feature in ['chamchamcham', 'eye_work', 'photo', 'stretch'];
+    }
+
+    match /feedback/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['rating', 'service', 'robotId', 'floor', 'createdAt'])
+        && validRobot(request.resource.data)
+        && validService(request.resource.data['service'])
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.createdAt == request.time;
+    }
+
+    match /usage_events/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['event', 'service', 'robotId', 'floor', 'createdAt'])
+        && validRobot(request.resource.data)
+        && validService(request.resource.data['service'])
+        && request.resource.data.event in ['started', 'completed']
+        && request.resource.data.createdAt == request.time;
+    }
+  }
+}

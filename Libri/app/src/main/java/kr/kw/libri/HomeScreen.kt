@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 
 /** 홈 — 기능 선택 메뉴. 각 버튼이 해당 Screen 으로 이동한다 */
 @Composable
-fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier, onRobotSettings: () -> Unit = {}) {
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -33,6 +33,7 @@ fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier) {
         MenuButton("✌️ 참참참", "고개 방향으로 겨루는 게임") { onSelect(Screen.CHAM) }
         MenuButton("👀 눈 운동", "점을 따라가며 눈을 쉬어요") { onSelect(Screen.EYE) }
         MenuButton("🤸 스트레칭", "목·어깨를 가볍게 풀어요") { onSelect(Screen.STRETCH) }
+        androidx.compose.material3.OutlinedButton(onClick = onRobotSettings, modifier = Modifier.fillMaxWidth()) { Text("로봇 설정") }
     }
 }
 
