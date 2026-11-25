@@ -9,12 +9,16 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.max
 
 @Serializable
 data class PhotoRecord(
@@ -38,41 +42,73 @@ object SupabaseManager {
         install(Postgrest)
     }
 
-    // 1. 원본 이미지 압축 (JPEG 80%) 후 Storage 업로드 및 DB 기록
+    // 1. TEMI 메모리 최적화 리사이징 + JPEG 80% 압축 후 Storage 업로드 및 DB 기록 (15초 타임아웃 보장)
     suspend fun uploadAndRecordPhoto(context: Context, originalFile: File): Result<String> = withContext(Dispatchers.IO) {
         val compressedFile = File(context.cacheDir, "compressed_${originalFile.name}")
         try {
-            val bitmap = BitmapFactory.decodeFile(originalFile.absolutePath)
-                ?: return@withContext Result.failure(IllegalStateException("비트맵 디코딩에 실패했습니다."))
+            withTimeout(15_000L) {
+                val bitmap = decodeSampledBitmap(originalFile.absolutePath, maxDimension = 1800)
+                    ?: throw IllegalStateException("비트맵 디코딩에 실패했습니다.")
 
-            FileOutputStream(compressedFile).use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-                outputStream.flush()
+                try {
+                    FileOutputStream(compressedFile).use { outputStream ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                        outputStream.flush()
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
+
+                val bucket = client.storage.from(BUCKET_NAME)
+                val bytes = compressedFile.readBytes()
+                bucket.upload(
+                    path = originalFile.name,
+                    data = bytes,
+                    upsert = true
+                )
+
+                val publicUrl = bucket.publicUrl(originalFile.name)
+
+                client.postgrest[TABLE_NAME].insert(PhotoRecord(imageUrl = publicUrl))
+                Log.d("Supabase", "DB 기록 및 업로드 완료: $publicUrl")
+
+                Result.success(publicUrl)
             }
-            bitmap.recycle()
-
-            val bucket = client.storage.from(BUCKET_NAME)
-            val bytes = compressedFile.readBytes()
-            bucket.upload(
-                path = originalFile.name,
-                data = bytes,
-                upsert = true
-            )
-
-            val publicUrl = bucket.publicUrl(originalFile.name)
-
-            client.postgrest[TABLE_NAME].insert(PhotoRecord(imageUrl = publicUrl))
-            Log.d("Supabase", "DB 기록 및 업로드 완료: $publicUrl")
-
-            Result.success(publicUrl)
-        } catch (e: Exception) {
+        } catch (e: TimeoutCancellationException) {
+            Log.e("Supabase", "업로드 시간 초과(15초)", e)
+            Result.failure(Exception("업로드 시간이 초과되었습니다. 네트워크를 확인해주세요.", e))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
             Log.e("Supabase", "업로드/DB 저장 실패: ${e.message}", e)
-            Result.failure(e)
+            Result.failure(if (e is Exception) e else Exception(e))
         } finally {
             if (compressedFile.exists()) {
                 compressedFile.delete()
             }
         }
+    }
+
+    // TEMI 본체 RAM 부족(OOM) 방지를 위한 안전 디코딩
+    private fun decodeSampledBitmap(filePath: String, maxDimension: Int): Bitmap? {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(filePath, options)
+
+        if (options.outWidth <= 0 || options.outHeight <= 0) {
+            return null
+        }
+
+        var sampleSize = 1
+        val maxSide = max(options.outWidth, options.outHeight)
+        while (maxSide / sampleSize > maxDimension) {
+            sampleSize *= 2
+        }
+
+        val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
+        return BitmapFactory.decodeFile(filePath, decodeOptions)
     }
 
     /** 사진 보관 시간 — 이보다 오래된 네컷 사진은 Storage 에서 지운다 */
