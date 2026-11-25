@@ -31,7 +31,7 @@ class PatrolController(
         // 화면 상태별 권장 고개 각도 (-25 ~ 55도 범위)
         const val TILT_PATROL = 15   // 순회 주행 및 기본 얼굴 눈맞춤용
         const val TILT_CAMERA = 20   // 네컷 사진 촬영 / 스트레칭 카메라 인식용
-        const val TILT_TOUCH = 30    // 홈 메뉴 / 참참참 / 오목 등 화면 터치 조작 편의를 위한 각도
+        const val TILT_TOUCH = 45    // 홈 메뉴 / 참참참 / 오목 등 화면 터치 조작 편의를 위한 각도
     }
 
     var isRobotReady: Boolean = false
