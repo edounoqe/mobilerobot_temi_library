@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +75,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
+import kotlinx.coroutines.delay
 import kr.kw.libri.R
 import kotlin.math.ceil
 import kotlin.math.max
@@ -320,6 +322,44 @@ fun LibriButton(
     }
 }
 
+/** 확인 버튼이 원래 모습으로 돌아가기까지 (두 번째 누름을 기다리는 시간) */
+private const val CONFIRM_WINDOW_MS = 3000L
+
+/**
+ * 한 번 더 눌러야 실행되는 버튼 — 게임을 끝내는 '나가기'·'기권'·'점수 초기화' 처럼 되돌릴 수 없는 일에 쓴다.
+ * 처음 누르면 [confirmText] 로 바뀌며 빨갛게 칠해지고, CONFIRM_WINDOW_MS 안에 한 번 더 눌러야 [onConfirm] 이 불린다.
+ * @param needConfirm false 면 확인 없이 바로 실행한다 (예: 게임이 이미 끝난 뒤의 '나가기')
+ */
+@Composable
+fun LibriConfirmButton(
+    text: String,
+    confirmText: String,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
+    style: LibriButtonStyle = LibriButtonStyle.PAPER,
+    needConfirm: Boolean = true,
+    minHeight: Dp = 46.dp,
+    fontSize: Int = 17,
+) {
+    var armedState by remember { mutableStateOf(false) }
+    val armed = armedState && needConfirm       // 확인이 필요 없어지면(판이 끝나면) 원래 모습으로
+    LaunchedEffect(armedState, needConfirm) {
+        if (armedState) {
+            if (needConfirm) delay(CONFIRM_WINDOW_MS)
+            armedState = false
+        }
+    }
+    LibriButton(
+        if (armed) confirmText else text,
+        { if (armed || !needConfirm) { armedState = false; onConfirm() } else armedState = true },
+        modifier,
+        style = if (armed) LibriButtonStyle.COLOR else style,
+        color = LibriColors.Coral,
+        minHeight = minHeight,
+        fontSize = fontSize,
+    )
+}
+
 // ───────── 글자 ─────────
 
 /** 제목 — 굵은 손글씨 */
@@ -418,12 +458,17 @@ fun LibriTag(text: String, color: Color, modifier: Modifier = Modifier, fontSize
 
 // ───────── 화면 틀 ─────────
 
-/** 게임 화면 맨 위 띠 — 왼쪽 내용(제목·점수 등) + 오른쪽 '나가기' */
+/**
+ * 게임 화면 맨 위 띠 — 왼쪽 내용(제목·점수 등) + 오른쪽 '나가기'
+ * @param confirmExit true 면 '나가기'를 한 번 더 눌러야 나간다 (판이 진행 중일 때 실수로 끝나지 않게)
+ */
 @Composable
 fun LibriTopBar(
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
     exitLabel: String = "나가기",
+    confirmExit: Boolean = false,
+    exitConfirmLabel: String = "정말 나갈까요?",
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
@@ -438,7 +483,7 @@ fun LibriTopBar(
             .padding(start = 16.dp, end = 12.dp, top = 6.dp, bottom = 8.dp),
     ) {
         content()
-        LibriButton(exitLabel, onExit, minHeight = 46.dp, fontSize = 17)
+        LibriConfirmButton(exitLabel, exitConfirmLabel, onExit, needConfirm = confirmExit)
     }
 }
 

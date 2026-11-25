@@ -40,6 +40,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import kr.kw.libri.common.LibriButton
 import kr.kw.libri.common.LibriButtonStyle
+import kr.kw.libri.common.LibriConfirmButton
+import kr.kw.libri.common.LeaveOnDispose
 import kr.kw.libri.common.LibriColors
 import kr.kw.libri.common.LibriFonts
 import kr.kw.libri.common.LibriLabel
@@ -70,6 +72,8 @@ fun OmokScreen(
     val rank by vm.rank.collectAsStateWithLifecycle()
     val me = seat
     val ranking = rank
+    // 사람이 떠나 얼굴 화면으로 돌아가는 등 화면이 바뀌면 방을 비운다 (온라인 판은 기권 처리)
+    LeaveOnDispose { vm.closeRanking(); vm.leave(); vm.clearError() }
     when {
         ranking != null -> {
             BackHandler { vm.closeRanking() }
@@ -273,7 +277,7 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
                     Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             NoteText(label, Modifier.weight(1f), size = 20.sp)
-                            LibriButton("나가기", { vm.leave() }, minHeight = 46.dp, fontSize = 17)
+                            LibriConfirmButton("나가기", "정말 나갈까요?", { vm.leave() }, needConfirm = playing)
                         }
                         players(Modifier.fillMaxWidth(), true)
                         status(Modifier.fillMaxWidth())
@@ -283,7 +287,7 @@ private fun OmokGame(vm: OmokViewModel, me: Seat, modifier: Modifier) {
                 }
             } else {
                 Column(Modifier.fillMaxSize()) {
-                    LibriTopBar(onExit = { vm.leave() }) { NoteText(label, Modifier.weight(1f), size = 18.sp) }
+                    LibriTopBar(onExit = { vm.leave() }, confirmExit = playing) { NoteText(label, Modifier.weight(1f), size = 18.sp) }
                     Column(
                         Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),

@@ -46,12 +46,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleStartEffect
+import kr.kw.libri.backend.RobotIdentity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import kr.kw.libri.common.FaceDetectionView
 import kr.kw.libri.common.HandDoodle
 import kr.kw.libri.common.LibriButton
 import kr.kw.libri.common.LibriButtonStyle
+import kr.kw.libri.common.LibriConfirmButton
 import kr.kw.libri.common.LibriColors
 import kr.kw.libri.common.LibriFonts
 import kr.kw.libri.common.LibriLabel
@@ -60,6 +64,7 @@ import kr.kw.libri.common.LibriScreen
 import kr.kw.libri.common.LibriStep
 import kr.kw.libri.common.LibriTag
 import kr.kw.libri.common.LibriTopBar
+import kr.kw.libri.common.LeaveOnDispose
 import kr.kw.libri.common.NoteText
 import kr.kw.libri.common.SketchCard
 import kr.kw.libri.common.SketchSurface
@@ -75,14 +80,20 @@ private fun Seat.color(): Color = if (this == Seat.A) LibriColors.Coral else Lib
 @Composable
 fun ChamScreen(
     onExit: () -> Unit,
+    identity: RobotIdentity?,
+    authorized: Boolean,
+    onPairingAvailability: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     vm: ChamViewModel = viewModel(),
 ) {
+    LifecycleStartEffect(vm) { onStopOrDispose { vm.leaveOnlineRoom() } }
     val seat by vm.seat.collectAsStateWithLifecycle()
     val me = seat
+    // 사람이 떠나 얼굴 화면으로 돌아가는 등 화면이 바뀌면 방을 비운다 (온라인 자리가 잠긴 채 남지 않게)
+    LeaveOnDispose { vm.leave(); vm.resetForNextVisitor() }
     if (me == null) {
         BackHandler(onBack = onExit)
-        ChamLobby(vm, onExit, modifier)
+        ChamLobby(vm, onExit, modifier, identity, authorized, onPairingAvailability)
     } else {
         BackHandler { vm.leave() }
         ChamGame(vm, me, modifier)
@@ -92,9 +103,12 @@ fun ChamScreen(
 // ───────── 대기실 ─────────
 
 @Composable
-private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier) {
+private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier, identity: RobotIdentity?, authorized: Boolean, onPairingAvailability: (Boolean) -> Unit) {
     var code by rememberSaveable { mutableStateOf("temi") }
-    var online by rememberSaveable { mutableStateOf(vm.onlineAvailable) }
+    // 대부분은 혼자 온다 — 기본은 혼자 연습
+    var selectedOnline by rememberSaveable { mutableStateOf(false) }
+    val online = selectedOnline && authorized && vm.onlineAvailable
+    val roomStatus by vm.roomStatus.collectAsStateWithLifecycle()
 
     // 수비할 때 카메라가 필요하다 — 게임 도중이 아니라 입장할 때 미리 묻는다 (거절해도 입장은 된다)
     var pendingSeat by rememberSaveable { mutableStateOf<Seat?>(null) }
@@ -121,30 +135,27 @@ private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier)
             SketchCard(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 LibriStep(1, "공격하는 사람은 손이 가리킬 방향을 미리 골라요")
                 LibriStep(2, "수비하는 사람은 \"참!\" 소리에 맞춰 고개를 돌려요")
-                LibriStep(3, "손과 같은 쪽을 보면 공격 성공 +1점, 반대쪽을 보면 공격권이 넘어가요")
+                LibriStep(3, "같은 쪽을 보면 공격 성공 +1점, 반대쪽이면 공격권이 넘어가요")
             }
         },
     ) {
         LibriLabel("누구와 할까요?")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             LibriButton(
-                "기기 2대로 대결", { online = true }, Modifier.weight(1f),
-                style = if (online) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
-                enabled = vm.onlineAvailable, minHeight = 68.dp, sub = "온라인",
-            )
-            LibriButton(
-                "혼자 연습", { online = false }, Modifier.weight(1f),
+                "혼자 연습", { selectedOnline = false }, Modifier.weight(1f),
                 style = if (!online) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
                 minHeight = 68.dp, sub = "봇과 대결",
             )
-        }
-        if (!vm.onlineAvailable) {
-            Text(
-                "Firebase 설정이 없어 온라인 대결을 쓸 수 없어요. libri/local.properties 에 firebase.* 값을 넣고 다시 빌드하세요.",
-                color = LibriColors.Stamp, fontSize = 13.sp, lineHeight = 18.sp,
+            LibriButton(
+                "기기 2대로 대결", { selectedOnline = true }, Modifier.weight(1f),
+                style = if (online) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
+                enabled = authorized && vm.onlineAvailable, minHeight = 68.dp, sub = if (authorized && vm.onlineAvailable) "온라인" else "지금은 쓸 수 없어요",
             )
         }
+        if (!authorized) Text("온라인 대결에는 로봇 설정에서 Firebase 승인이 필요해요.")
+        if (roomStatus == OnlineRoomStatus.FAILED) Text("게임방을 열지 못했어요. 다시 시도해 주세요.")
         if (online) {
+            if (identity != null) ChamPairing(identity, onPairingAvailability) { room, seat -> vm.join(room, seat, true) }
             OutlinedTextField(
                 value = code,
                 onValueChange = { code = it.trim() },
@@ -153,20 +164,24 @@ private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier)
                 colors = libriTextFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
-
-        LibriLabel("자리를 골라 입장하세요", Modifier.padding(top = 6.dp))
-        if (online) {
+            LibriLabel("자리를 골라 입장하세요", Modifier.padding(top = 6.dp))
             Text("두 기기가 서로 다른 자리를 골라요. A 가 먼저 공격합니다.", color = LibriColors.Pencil, fontSize = 15.sp)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            for (seat in Seat.entries) {
-                LibriButton(
-                    "${seat.name} 로 입장", { enter(seat) }, Modifier.weight(1f),
-                    style = LibriButtonStyle.COLOR, color = seat.color(), minHeight = 84.dp, fontSize = 24,
-                    sub = if (seat == Seat.A) "먼저 공격" else "먼저 수비",
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                for (seat in Seat.entries) {
+                    LibriButton(
+                        "${seat.name} 로 입장", { enter(seat) }, Modifier.weight(1f),
+                        style = LibriButtonStyle.COLOR, color = seat.color(), minHeight = 84.dp, fontSize = 24,
+                        sub = if (seat == Seat.A) "먼저 공격" else "먼저 수비",
+                    )
+                }
             }
+        } else {
+            // 혼자 할 때는 자리를 고를 필요가 없다 — 내가 먼저 공격
+            LibriButton(
+                "시작하기", { enter(Seat.A) }, Modifier.fillMaxWidth().padding(top = 6.dp),
+                style = LibriButtonStyle.COLOR, color = Seat.A.color(), minHeight = 84.dp, fontSize = 26,
+                sub = "내가 먼저 공격해요",
+            )
         }
     }
 }
@@ -177,6 +192,9 @@ private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier)
 private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
     val room by vm.room.collectAsStateWithLifecycle()
     val online by vm.online.collectAsStateWithLifecycle()
+    val roomStatus by vm.roomStatus.collectAsStateWithLifecycle()
+    val playable = !online || roomStatus == OnlineRoomStatus.READY
+    val soundOn = vm.soundOn
     val now by produceState(vm.now(), vm) {
         while (true) {
             withFrameMillis { }
@@ -186,13 +204,15 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
 
     val r = room.round
     // 결과까지 보여 주는 동안은 그 라운드 기준으로, 끝나면 다음 공격자 기준으로 화면을 그린다
-    val shown = r?.takeIf { it.result == null || now < it.startAt + JUDGE_END + RESULT_SHOW_MS }
+    val shown = r?.takeIf { playable && (it.result == null || now < it.startAt + JUDGE_END + RESULT_SHOW_MS) }
     val attackerSeat = shown?.attacker ?: room.attacker
     val iAttack = attackerSeat == me
     val t = shown?.let { now - it.startAt }
     val pose = handPose(t, shown?.dir)
     val opponentHere = if (me == Seat.A) room.joinedB else room.joinedA
-    val canPick = iAttack && shown == null && opponentHere
+    var opponentWasHere by remember { mutableStateOf(false) }
+    LaunchedEffect(opponentHere) { if (opponentHere) opponentWasHere = true }
+    val canPick = playable && iAttack && shown == null && opponentHere
 
     // 수비 중 카메라에 비친 내 고개 방향 — 화면 안내용 (판정은 ViewModel 이 한다). null = 얼굴이 안 보임
     var myLook by remember { mutableStateOf<HeadDir?>(null) }
@@ -219,20 +239,23 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                 )
             }
 
-            // 상단 — 점수판, 초기화, 나가기
-            LibriTopBar(onExit = { vm.leave() }, modifier = Modifier.align(Alignment.TopCenter)) {
+            // 상단 — 점수판, 초기화, 소리, 나가기. 판이 진행 중이라 '나가기'·'점수 초기화'는 한 번 더 눌러야 한다
+            LibriTopBar(
+                onExit = { vm.leave() }, modifier = Modifier.align(Alignment.TopCenter),
+                confirmExit = opponentHere,                                   // 상대를 기다리는 빈 방은 바로 나간다
+                exitConfirmLabel = if (wide) "정말 나갈까요?" else "정말?",   // 좁은 화면은 점수판 자리를 남긴다
+            ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        NoteText(if (online) "온라인 대결" else "혼자 연습 (봇)", size = 17.sp, color = LibriColors.Pencil)
-                        // 좁은 화면에서는 버튼 대신 밑줄 친 글자로 (점수판 자리를 남긴다)
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // 좁은 화면에서는 모드 이름 대신 밑줄 친 글자 버튼을 둔다 (둘째 줄 점수판 자리를 남긴다)
+                        if (wide) NoteText(if (online) "온라인 대결" else "혼자 연습 (봇)", size = 17.sp, color = LibriColors.Pencil)
                         if (!wide) {
-                            NoteText(
-                                "점수 초기화", size = 16.sp, color = LibriColors.Pencil,
-                                modifier = Modifier.clickable { vm.resetScore() }.drawBehind {
-                                    val y = size.height - 2.dp.toPx()
-                                    drawLine(LibriColors.Pencil, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
-                                },
-                            )
+                            var armReset by remember { mutableStateOf(false) }
+                            LaunchedEffect(armReset) { if (armReset) { delay(3000); armReset = false } }
+                            TextLink(if (armReset) "정말 초기화?" else "점수 초기화", if (armReset) LibriColors.Stamp else LibriColors.Pencil) {
+                                if (armReset) { armReset = false; vm.resetScore() } else armReset = true
+                            }
+                            TextLink(if (soundOn) "소리 켬" else "소리 끔", LibriColors.Pencil) { vm.toggleSound() }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -241,7 +264,13 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                         SeatScore(Seat.B, room.scoreB, me, attackerSeat, wide)
                     }
                 }
-                if (wide) LibriButton("점수 초기화", { vm.resetScore() }, style = LibriButtonStyle.FLAT, minHeight = 46.dp, fontSize = 16)
+                if (wide) {
+                    LibriButton(
+                        if (soundOn) "소리 켬" else "소리 끔", { vm.toggleSound() },
+                        style = LibriButtonStyle.FLAT, minHeight = 46.dp, fontSize = 16,
+                    )
+                    LibriConfirmButton("점수 초기화", "정말 초기화?", { vm.resetScore() }, style = LibriButtonStyle.FLAT, fontSize = 16)
+                }
             }
 
             // 누구 턴인지 — 내 턴(공격)과 상대 턴(수비)을 자리 색으로 구분한다
@@ -250,6 +279,15 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
             // 상태 안내 — 지금 무엇을 해야 하는지
             val status: @Composable (Modifier) -> Unit = { at ->
                 when {
+                    !playable -> StatusCard(at, when (roomStatus) {
+                        OnlineRoomStatus.PERMISSION_DENIED -> "게임방 접근 권한이 없어요"
+                        OnlineRoomStatus.SEAT_TAKEN -> "이미 사용 중인 자리예요"
+                        OnlineRoomStatus.DISCONNECTED -> "연결이 끊겼어요"
+                        OnlineRoomStatus.TIMED_OUT -> "입장 응답이 늦어요"
+                        OnlineRoomStatus.FAILED -> "게임을 동기화하지 못했어요"
+                        else -> "온라인 게임방에 연결하는 중…"
+                    }, sub = if (roomStatus == OnlineRoomStatus.CONNECTING) "" else "나간 뒤 다시 입장해 주세요")
+                    !opponentHere && opponentWasHere -> StatusCard(at, "상대가 나갔어요", sub = "다시 입장하면 대결을 계속할 수 있어요")
                     !opponentHere -> StatusCard(
                         at, "상대를 기다리는 중…", sub = "다른 기기에서 같은 방 코드로 입장해 주세요",
                     )
@@ -301,7 +339,7 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                     status(Modifier.align(Alignment.TopEnd).padding(top = 92.dp, end = 20.dp).width(360.dp))
                 } else {
                     status(Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 24.dp).width(360.dp))
-                    mirror(Modifier.align(Alignment.BottomStart).padding(start = 28.dp, bottom = 24.dp))
+                    if (playable && opponentHere) mirror(Modifier.align(Alignment.BottomStart).padding(start = 28.dp, bottom = 24.dp))
                 }
             } else if (iAttack) {
                 // 세로 화면, 공격: 안내는 위, 내 손은 아래에서 올라온다
@@ -314,7 +352,7 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     status(Modifier.fillMaxWidth())
-                    mirror(Modifier)
+                    if (playable && opponentHere) mirror(Modifier)
                 }
             }
 
@@ -349,6 +387,18 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
             }
         }
     }
+}
+
+/** 밑줄 친 연필 글자 버튼 — 좁은 화면의 상단 띠처럼 자리가 모자랄 때 */
+@Composable
+private fun TextLink(text: String, color: Color, onClick: () -> Unit) {
+    Text(
+        text, fontSize = 16.sp, color = color, fontFamily = LibriFonts.Hand, maxLines = 1, softWrap = false,
+        modifier = Modifier.clickable(onClick = onClick).drawBehind {
+            val y = size.height - 2.dp.toPx()
+            drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+        },
+    )
 }
 
 /** 누구 턴인지 알리는 꼬리표 */

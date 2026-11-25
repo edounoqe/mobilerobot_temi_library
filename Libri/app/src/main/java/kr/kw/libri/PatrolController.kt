@@ -89,7 +89,7 @@ class PatrolController(
         val targetAngle = when (screen) {
             Screen.FACE -> TILT_PATROL
             Screen.PHOTO, Screen.STRETCH -> TILT_CAMERA
-            Screen.HOME, Screen.CHAM, Screen.OMOK -> TILT_TOUCH
+            Screen.HOME, Screen.CHAM, Screen.OMOK, Screen.FEEDBACK, Screen.ROBOT_SETTINGS -> TILT_TOUCH
         }
         setTiltSafely(targetAngle)
     }

@@ -5,6 +5,9 @@ import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.face.Face
@@ -25,11 +28,15 @@ import java.util.Locale
  */
 class ChamViewModel(app: Application) : AndroidViewModel(app) {
 
-    val onlineAvailable: Boolean = firebaseConfigured
+    val onlineAvailable: Boolean = firebaseConfigured(app)
 
     private var server: ChamServer? = null
     private var roomJob: Job? = null
     private var tickJob: Job? = null
+    private var connectionJob: Job? = null
+    private var timeoutJob: Job? = null
+    private val _roomStatus = MutableStateFlow<OnlineRoomStatus?>(null)
+    internal val roomStatus = _roomStatus.asStateFlow()
 
     private val _seat = MutableStateFlow<Seat?>(null)
     val seat: StateFlow<Seat?> = _seat.asStateFlow()
@@ -42,18 +49,49 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
 
     private val sound = ChamSound(app)
 
+    /** "참" 소리 — 도서관이라 끌 수 있다 (꺼도 화면의 손·글자·박자 표시는 그대로) */
+    var soundOn by mutableStateOf(true)
+        private set
+
+    fun toggleSound() {
+        soundOn = !soundOn
+    }
+
+    /** 다음 사람을 위해 — 앞 사람이 바꾼 설정(소리 끄기)을 되돌린다 */
+    fun resetForNextVisitor() {
+        soundOn = true
+    }
+
     /** 두 기기가 같은 기준으로 쓰는 시각 (Firebase 서버 시각) */
     fun now(): Long = server?.serverNow() ?: System.currentTimeMillis()
 
     fun join(roomCode: String, seat: Seat, online: Boolean) {
         leave()
         val s: ChamServer = if (online && onlineAvailable) {
-            FirebaseChamServer(getApplication(), roomCode)
+            runCatching { FirebaseChamServer(getApplication(), roomCode) }.getOrElse {
+                _roomStatus.value = OnlineRoomStatus.FAILED
+                return
+            }
         } else {
             LocalChamServer(viewModelScope, bot = seat.other)
         }
         server = s
         _online.value = online && onlineAvailable
+        if (s is FirebaseChamServer) {
+            _roomStatus.value = OnlineRoomStatus.CONNECTING
+            connectionJob = viewModelScope.launch {
+                s.status.collect { status ->
+                    if (_roomStatus.value != OnlineRoomStatus.TIMED_OUT) _roomStatus.value = status
+                }
+            }
+            timeoutJob = viewModelScope.launch {
+                delay(12_000)
+                if (_roomStatus.value == OnlineRoomStatus.CONNECTING) {
+                    s.leave()
+                    _roomStatus.value = OnlineRoomStatus.TIMED_OUT
+                }
+            }
+        }
         s.join(seat)
         _seat.value = seat
         roomJob = viewModelScope.launch { s.state.collect { _room.value = it } }
@@ -68,10 +106,17 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
     fun leave() {
         roomJob?.cancel()
         tickJob?.cancel()
+        connectionJob?.cancel()
+        timeoutJob?.cancel()
         server?.leave()
         server = null
         _seat.value = null
         _room.value = RoomState()
+        _roomStatus.value = null
+    }
+
+    fun leaveOnlineRoom() {
+        if (server is FirebaseChamServer) leave()
     }
 
     fun attack(dir: Dir) {
@@ -91,6 +136,7 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
 
     /** FaceDetectionView 가 프레임마다 호출 (메인 스레드) */
     fun onFaces(faces: List<Face>) {
+        if (_online.value && _roomStatus.value != OnlineRoomStatus.READY) return
         val r = _room.value.round ?: return
         val me = _seat.value ?: return
         if (r.attacker == me || r.result != null) return
@@ -105,6 +151,7 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun tick() {
+        if (_online.value && _roomStatus.value != OnlineRoomStatus.READY) return
         val r = _room.value.round ?: return
         val me = _seat.value ?: return
         val t = now() - r.startAt
@@ -121,7 +168,7 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
             val key = "${r.id}-$beat"
             if (key != spokenKey) {
                 spokenKey = key
-                sound.cham(final = beat == 2)
+                if (soundOn) sound.cham(final = beat == 2)
             }
         }
 
