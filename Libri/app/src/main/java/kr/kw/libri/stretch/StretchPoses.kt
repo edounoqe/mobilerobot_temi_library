@@ -1,6 +1,7 @@
 package kr.kw.libri.stretch
 
 import kotlin.math.abs
+import kotlin.random.Random
 
 /**
  * 벽 하나에 뚫린 구멍 = 스트레칭 동작 하나.
@@ -48,7 +49,13 @@ class StretchPose(
     }
 }
 
-/** 코스 — 벽이 나오는 순서와 간격(처음 → 마지막으로 갈수록 조금씩 빨라진다) */
+/**
+ * 코스 — 벽이 나오는 순서와 간격(처음 → 마지막으로 갈수록 조금씩 빨라진다)
+ * @param lives    하트 수 (0 이면 하트 없이 끝까지). 벽에 부딪힐 때마다 하나씩 잃고, 다 잃으면 게임 오버
+ * @param endless  서바이벌 — 벽이 끝없이 나오고 점점 빨라진다. 하트를 다 잃을 때까지 계속한다
+ * @param stepMs   서바이벌에서 벽마다 줄어드는 간격 (lastIntervalMs 가 가장 빠른 간격)
+ * @param pick     서바이벌에서 index 번째 벽에 나올 동작을 고른다
+ */
 class StretchCourse(
     val id: String,
     val title: String,
@@ -56,12 +63,21 @@ class StretchCourse(
     val poses: List<StretchPose>,
     val firstIntervalMs: Float,
     val lastIntervalMs: Float,
+    val lives: Int = 0,
+    val endless: Boolean = false,
+    val stepMs: Float = 0f,
+    private val pick: ((index: Int, previous: StretchPose?, rnd: Random) -> StretchPose)? = null,
 ) {
     fun intervalMs(index: Int): Float {
+        if (endless) return (firstIntervalMs - stepMs * index).coerceAtLeast(lastIntervalMs)
         if (poses.size <= 1) return firstIntervalMs
         val t = index / (poses.size - 1f)
         return firstIntervalMs + (lastIntervalMs - firstIntervalMs) * t
     }
+
+    /** index 번째 벽의 동작 */
+    fun poseAt(index: Int, previous: StretchPose?, rnd: Random): StretchPose =
+        pick?.invoke(index, previous, rnd) ?: poses[index % poses.size]
 }
 
 /*
@@ -179,11 +195,23 @@ object StretchCourses {
         ),
         firstIntervalMs = 6000f, lastIntervalMs = 4600f,
     )
-    /** 자세 대신 도형 구멍 — 어떤 자세든 구멍에 들어가기만 하면 된다. 생각할 시간을 조금 더 준다 */
+    /**
+     * 크리에이티브 서바이벌 — 자세 대신 도형 구멍. 하트 3개로 시작해 벽이 끝없이 나오고 점점 빨라진다.
+     * 처음 몇 개는 쉬운 도형, 갈수록 몸에 꼭 맞는 어려운 도형이 자주 나온다.
+     */
     val CREATIVE = StretchCourse(
-        "creative", "크리에이티브", "도형 7개 · 자유 자세",
+        "creative", "크리에이티브", "서바이벌 · 하트 3개",
         StretchShapes.ALL,
-        firstIntervalMs = 7000f, lastIntervalMs = 5800f,
+        firstIntervalMs = 6800f, lastIntervalMs = 3000f,
+        lives = 3, endless = true, stepMs = 260f,
+        pick = { i, prev, rnd ->
+            // 어려운 도형이 나올 확률 — 처음 4개는 0, 그 뒤로 점점 늘어 최대 70%
+            val hardChance = ((i - 3) * 0.08f).coerceIn(0f, 0.7f)
+            val pool = if (rnd.nextFloat() < hardChance) StretchShapes.HARD else StretchShapes.EASY
+            var p = pool[rnd.nextInt(pool.size)]
+            if (p === prev) p = pool[(pool.indexOf(p) + 1) % pool.size]   // 같은 구멍이 연달아 나오지 않게
+            p
+        },
     )
     val ALL = listOf(LIGHT, FULL, CREATIVE)
 }

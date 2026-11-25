@@ -267,6 +267,32 @@ private val CORNER_SHAPE = HoleShape(
     ),
 )
 
+// ───────── 어려운 도형 — 몸에 꼭 맞게 좁다. 크리에이티브 서바이벌 뒤쪽에 나온다 ─────────
+
+/** 좁은 굴뚝 — 허리 높이는 몸통만 지나갈 만큼, 위로는 두 팔을 딱 붙여야 지나간다 */
+private val CHIMNEY_SHAPE = symmetric(
+    LEG_HALF, BELOW, LEG_HALF, 0.8f, 0.3f, 1.15f, 0.3f, 2.2f, 0.54f, 2.35f, 0.54f, TOP,
+)
+
+/** 대각선 — 왼팔은 왼쪽 위로, 오른팔은 오른쪽 아래로 뻗은 '디스코' 자세 모양 */
+private val DISCO_SHAPE = HoleShape(
+    floatArrayOf(
+        -LEG_HALF, BELOW, -LEG_HALF, 0.8f, -SLIM_HALF, 1.15f, -SLIM_HALF, 2.24f,
+        -1.55f, 3.37f, -1.13f, 3.79f, -0.40f, 3.06f, -0.40f, 3.48f, 0.40f, 3.48f, 0.40f, 2.95f,
+        0.60f, 2.80f, 1.48f, 1.75f, 1.02f, 1.37f, SLIM_HALF, 2.085f,
+        SLIM_HALF, 1.15f, LEG_HALF, 0.8f, LEG_HALF, BELOW,
+    ),
+)
+
+/** 크게 기운 틈 — 몸을 오른쪽으로 깊게 기울이고 두 팔도 그 방향으로 뻗어야 한다 */
+private val STEEP_RIGHT_SHAPE = HoleShape(
+    floatArrayOf(
+        -LEG_HALF, BELOW, -LEG_HALF, 0.8f, -SLIM_HALF, 1.15f, -SLIM_HALF, 1.6f, -0.546f, 1.86f,
+        0.48f, 4.1f, 1.58f, 3.6f, 0.546f, 1.36f,
+        SLIM_HALF, 1.15f, LEG_HALF, 0.8f, LEG_HALF, BELOW,
+    ),
+)
+
 private const val FREE = "정해진 자세는 없어요"
 
 object StretchShapes {
@@ -299,7 +325,34 @@ object StretchShapes {
         left = Arm(90f, 90f), right = Arm(180f, 180f), shape = mirrored(CORNER_SHAPE),
     )
 
-    val ALL = listOf(VEE, BAR, ROUND, LEAN_RIGHT, LEAN_LEFT, CORNER_LEFT, CORNER_RIGHT)
+    val CHIMNEY = make(
+        "shape_chimney", "좁은 굴뚝", "두 팔을 머리 위로 딱 붙여요",
+        left = Arm(180f, 205f), right = Arm(180f, 205f), shape = CHIMNEY_SHAPE,
+    )
+    val DISCO_LEFT = make(
+        "shape_disco_left", "대각선 틈", "왼팔은 위로, 오른팔은 아래로 비스듬히",
+        left = Arm(135f, 135f), right = Arm(40f, 40f), shape = DISCO_SHAPE,
+    )
+    val DISCO_RIGHT = make(
+        "shape_disco_right", "대각선 틈", "이번엔 반대로 비스듬히!",
+        left = Arm(40f, 40f), right = Arm(135f, 135f), shape = mirrored(DISCO_SHAPE),
+    )
+    val STEEP_RIGHT = make(
+        "shape_steep_right", "크게 기운 틈", "몸을 오른쪽으로 크게 기울여요",
+        left = Arm(180f, 180f), right = Arm(180f, 180f), lean = 25f, shape = STEEP_RIGHT_SHAPE,
+        focus = mapOf(Bone.SPINE to 3f),
+    )
+    val STEEP_LEFT = make(
+        "shape_steep_left", "크게 기운 틈", "이번엔 왼쪽으로 크게!",
+        left = Arm(180f, 180f), right = Arm(180f, 180f), lean = -25f, shape = mirrored(STEEP_RIGHT_SHAPE),
+        focus = mapOf(Bone.SPINE to 3f),
+    )
+
+    /** 처음 나오는 쉬운 도형 */
+    val EASY = listOf(VEE, BAR, ROUND, LEAN_RIGHT, LEAN_LEFT, CORNER_LEFT, CORNER_RIGHT)
+    /** 몸에 꼭 맞는 어려운 도형 */
+    val HARD = listOf(CHIMNEY, DISCO_LEFT, DISCO_RIGHT, STEEP_RIGHT, STEEP_LEFT)
+    val ALL = EASY + HARD
 
     /** 화면에 덧붙이는 한마디 */
     const val HINT = "$FREE. 구멍에 닿지 않게, 넓게 채울수록 '완벽'!"

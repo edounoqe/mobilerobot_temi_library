@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="libri_pencil">#615C55</color>
+    <color name="libri_faint">#A29B8F</color>
+    <color name="libri_ink">#24221F</color>
+    <color name="libri_stamp">#D9412E</color>
+</resources>

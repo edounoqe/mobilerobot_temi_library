@@ -41,6 +41,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Libri 네컷 사진 기능 화면 -->
+        <activity android:name=".photobooth.PhotoEntryActivity" android:exported="false" android:theme="@style/Theme.Libri" />
+        <activity android:name=".photobooth.FrameSelectActivity" android:exported="false" android:theme="@style/Theme.Libri" />
+        <activity android:name=".photobooth.PhotoCaptureActivity" android:exported="false" android:theme="@style/Theme.Libri" />
+        <activity android:name=".photobooth.PhotoResultActivity" android:exported="false" android:theme="@style/Theme.Libri" />
     </application>
 
 </manifest>

@@ -123,6 +123,35 @@ fun MultiplayerPanel(game: InviteGame, modifier: Modifier = Modifier, blocked: S
 }
 
 /**
+ * 보낸 신청의 결과 팝업 — 상대가 거절했거나 답하지 않았을 때. 확인을 누르거나 8초가 지나면 닫힌다.
+ */
+@Composable
+fun InviteNoticeDialog(invites: GameInvites, modifier: Modifier = Modifier) {
+    val (title, detail) = invites.notice ?: return
+    LaunchedEffect(invites.notice) { delay(8000); invites.dismissNotice() }
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.35f))
+            .clickable(remember { MutableInteractionSource() }, indication = null) { invites.dismissNotice() },
+        contentAlignment = Alignment.Center,
+    ) {
+        SketchCard(
+            Modifier.padding(24.dp).widthIn(max = 480.dp).fillMaxWidth(),
+            seed = 29,
+            padding = PaddingValues(horizontal = 26.dp, vertical = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TitleText(title, size = 30.sp, color = LibriColors.Stamp, align = TextAlign.Center)
+            NoteText(detail, size = 20.sp, color = LibriColors.Pencil, align = TextAlign.Center)
+            NoteText("다른 기기에 신청하거나 Single Play 로 즐겨 보세요", size = 17.sp, color = LibriColors.Faint, align = TextAlign.Center)
+            LibriButton("확인", { invites.dismissNotice() }, Modifier.fillMaxWidth().padding(top = 4.dp), style = LibriButtonStyle.INK, minHeight = 64.dp, fontSize = 22)
+        }
+    }
+}
+
+/**
  * 받은 신청 팝업 — 화면 전체를 살짝 덮고 가운데에 수락 / 거절 카드를 띄운다.
  * MainActivity 가 모든 화면 위에 둔다 (실제 게임 중에는 상대가 신청할 수 없게 막혀 있다).
  */

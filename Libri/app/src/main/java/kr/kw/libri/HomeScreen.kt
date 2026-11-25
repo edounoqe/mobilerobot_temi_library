@@ -66,7 +66,7 @@ private val FEATURES = listOf(
     Feature(Screen.CHAM, "참참참", "손끝을 피해 고개를 휙!", LibriColors.Coral, "둘이서 · 혼자서") { HandDoodle(it) },
     Feature(Screen.OMOK, "오목", "다섯 알을 먼저 이어 보세요", LibriColors.Mint, "둘이서 · 랭킹") { OmokDoodle(it) },
     Feature(Screen.STRETCH, "스트레칭", "책장 벽을 몸으로 통과해요", LibriColors.Yellow, "약 1분") { StretchDoodle(it) },
-    Feature(Screen.PHOTO, "네컷 사진", "사진을 찍고 QR 로 받아 가요", LibriColors.Sky, "준비 중", ready = false) { PhotoDoodle(it) },
+    Feature(Screen.PHOTO, "네컷 사진", "사진을 찍고 QR 로 받아 가요", LibriColors.Sky, "QR 로 받기") { PhotoDoodle(it) },
 )
 
 /** 홈 — 기능 선택 메뉴. 각 카드가 해당 Screen 으로 이동한다 */

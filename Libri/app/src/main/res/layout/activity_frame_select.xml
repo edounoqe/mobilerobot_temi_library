@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/libri_paper"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Header (Compact) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_sketch_card"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="프레임 선택"
+            android:textColor="@color/libri_ink"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/txtSelectedFrame"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="프레임을 선택하세요."
+            android:textColor="@color/libri_pencil"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- 4-Quadrant 2x2 Grid Area (Fits 1 Screen) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Top Row (Quadrant 1: frame_1_library & Quadrant 2: frame_2_libri_burgundy) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:layout_marginBottom="10dp">
+
+            <!-- Quadrant 1: frame_1_library -->
+            <LinearLayout
+                android:id="@+id/btnFrame1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_sketch_card_selected"
+                android:elevation="2dp"
+                android:padding="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginEnd="6dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/imgFramePreview1"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/frame_1_library"
+                        android:scaleType="fitCenter"
+                        android:background="#FFFFFF"
+                        android:padding="2dp"
+                        android:contentDescription="광운 도서관 시그니처 프레임" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/txtCheck1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="도서관 시그니처 ●"
+                    android:textColor="@color/libri_ink"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="6dp" />
+            </LinearLayout>
+
+            <!-- Quadrant 2: frame_2_libri_burgundy -->
+            <LinearLayout
+                android:id="@+id/btnFrame2"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_sketch_card"
+                android:elevation="2dp"
+                android:padding="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginStart="6dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/imgFramePreview2"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/frame_2_libri_burgundy"
+                        android:scaleType="fitCenter"
+                        android:background="#FFFFFF"
+                        android:padding="2dp"
+                        android:contentDescription="LIBRI 버건디 프레임" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/txtCheck2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LIBRI 버건디 ○"
+                    android:textColor="@color/libri_faint"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="6dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Bottom Row (Quadrant 3: frame_3_libri_beige & Quadrant 4: frame_4_central_library) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <!-- Quadrant 3: frame_3_libri_beige -->
+            <LinearLayout
+                android:id="@+id/btnFrame3"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_sketch_card"
+                android:elevation="2dp"
+                android:padding="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginEnd="6dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/imgFramePreview3"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/frame_3_libri_beige"
+                        android:scaleType="fitCenter"
+                        android:background="#FFFFFF"
+                        android:padding="2dp"
+                        android:contentDescription="LIBRI 베이지 프레임" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/txtCheck3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LIBRI 베이지 ○"
+                    android:textColor="@color/libri_faint"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="6dp" />
+            </LinearLayout>
+
+            <!-- Quadrant 4: frame_4_central_library -->
+            <LinearLayout
+                android:id="@+id/btnFrame4"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_sketch_card"
+                android:elevation="2dp"
+                android:padding="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginStart="6dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center">
+
+                    <ImageView
+                        android:id="@+id/imgFramePreview4"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/frame_4_central_library"
+                        android:scaleType="fitCenter"
+                        android:background="#FFFFFF"
+                        android:padding="2dp"
+                        android:contentDescription="중앙도서관 프레임" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/txtCheck4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="중앙도서관 ○"
+                    android:textColor="@color/libri_faint"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="6dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Bottom Actions Area -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Start Shooting Button -->
+        <Button
+            android:id="@+id/btnStartShoot"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="사진 촬영 시작하기  ➔"
+            android:textSize="15sp"
+            android:textColor="@color/libri_ink"
+            android:textStyle="bold"
+            android:background="@drawable/bg_btn_libri_primary"
+            android:stateListAnimator="@null"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Navigation Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="이전"
+                android:textSize="13sp"
+                android:textColor="@color/libri_ink"
+                android:textStyle="bold"
+                android:background="@drawable/bg_btn_libri_secondary"
+                android:stateListAnimator="@null"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btnHome"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="홈으로"
+                android:textSize="13sp"
+                android:textColor="@color/libri_ink"
+                android:textStyle="bold"
+                android:background="@drawable/bg_btn_libri_secondary"
+                android:stateListAnimator="@null"
+                android:layout_marginStart="6dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/libri_paper"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="20dp">
+
+        <!-- Header Card: Libri Sketch Card Style -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/bg_sketch_card"
+            android:elevation="4dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="28dp"
+            android:paddingBottom="28dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp">
+
+            <!-- Red Stamp Badge -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LIBRI"
+                android:textColor="@color/libri_stamp"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1"
+                android:background="@drawable/bg_stamp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:rotation="-5"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Title -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="사진찍기"
+                android:textColor="@color/libri_ink"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="원하는 스케치 프레임을 선택하고 나만의 4컷 사진을 남겨보세요."
+                android:textColor="@color/libri_pencil"
+                android:textSize="15sp"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Feature Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_sketch_card"
+            android:elevation="4dp"
+            android:padding="22dp"
+            android:layout_marginBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="인생네컷 프레임 스튜디오"
+                android:textColor="@color/libri_ink"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btnOpenFrameSelect"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="프레임 선택하기  ➔"
+                android:textSize="16sp"
+                android:textColor="@color/libri_ink"
+                android:textStyle="bold"
+                android:background="@drawable/bg_btn_libri_primary"
+                android:stateListAnimator="@null" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Navigation Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="이전"
+                android:textSize="14sp"
+                android:textColor="@color/libri_ink"
+                android:textStyle="bold"
+                android:background="@drawable/bg_btn_libri_secondary"
+                android:stateListAnimator="@null"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnHome"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="홈으로"
+                android:textSize="14sp"
+                android:textColor="@color/libri_ink"
+                android:textStyle="bold"
+                android:background="@drawable/bg_btn_libri_secondary"
+                android:stateListAnimator="@null"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

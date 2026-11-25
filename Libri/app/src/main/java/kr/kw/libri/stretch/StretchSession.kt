@@ -151,7 +151,8 @@ class StageFx {
  * 게임 한 판 — 카메라(또는 자동 시연)에서 온 자세를 부드럽게 다듬어 엔진에 넘기고, 화면에 그릴 자세를 만든다.
  */
 class StretchSession(val course: StretchCourse, val demo: Boolean) {
-    val engine = StretchEngine(course)
+    // 튜토리얼(자동 시연)은 끝이 있어야 한다 — 서바이벌이면 벽 DEMO_WALLS 개까지만
+    val engine = StretchEngine(course, maxWalls = if (demo && course.endless) DEMO_WALLS else Int.MAX_VALUE, sequential = demo)
     val fx = StageFx()
 
     /** 화면에 그리는 자세 — 스무딩한 사용자 자세에, 통과 순간에는 구멍 모양을 섞는다 */
@@ -216,5 +217,6 @@ class StretchSession(val course: StretchCourse, val demo: Boolean) {
     private companion object {
         const val SMOOTH_TAU_MS = 70f       // 카메라(10~30fps) 결과를 화면 주사율로 부드럽게 잇는 시간 상수
         const val LOST_AFTER_MS = 600f      // 이 시간 동안 사람이 안 보이면 놓친 것으로 본다
+        const val DEMO_WALLS = 8
     }
 }

@@ -75,6 +75,34 @@ object SupabaseManager {
         }
     }
 
+    /** 사진 보관 시간 — 이보다 오래된 네컷 사진은 Storage 에서 지운다 */
+    const val PHOTO_KEEP_MS = 60 * 60 * 1000L
+    private val STAMPED = Regex("""^libri4cut_(\d{13})\.png$""")
+
+    /**
+     * 1시간이 지난 네컷 사진을 Storage 에서 지운다. 파일 이름의 찍은 시각(libri4cut_<ms>.png)으로 판단한다.
+     * 앱 안의 타이머 하나에 기대지 않고, 앱이 켜져 있는 동안 주기적으로 · 새 사진을 올릴 때마다 부른다
+     * (앱이 꺼졌다 켜져도 밀린 사진을 다음 정리 때 지운다).
+     * @return 지운 파일 수 (실패하면 0)
+     */
+    suspend fun cleanupExpiredPhotos(now: Long = System.currentTimeMillis()): Int = withContext(Dispatchers.IO) {
+        try {
+            val bucket = client.storage.from(BUCKET_NAME)
+            val expired = bucket.list().map { it.name }.filter { name ->
+                val taken = STAMPED.find(name)?.groupValues?.get(1)?.toLongOrNull() ?: return@filter false
+                now - taken >= PHOTO_KEEP_MS
+            }
+            if (expired.isNotEmpty()) {
+                bucket.delete(expired)
+                Log.d("Supabase", "오래된 네컷 사진 ${expired.size}장 삭제")
+            }
+            expired.size
+        } catch (e: Exception) {
+            Log.e("Supabase", "오래된 사진 정리 실패: ${e.message}", e)
+            0
+        }
+    }
+
     // 2. Storage의 원격 사진 삭제
     suspend fun deleteRemotePhoto(fileName: String) = withContext(Dispatchers.IO) {
         try {

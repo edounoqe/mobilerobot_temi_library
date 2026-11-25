@@ -87,7 +87,7 @@ class StretchShapeTest {
         while (s.engine.phase != Phase.RESULT && guard++ < 20_000) s.frame(16.7f) {}
         val e = s.engine
         assertEquals(Phase.RESULT, e.phase)
-        assertEquals(StretchShapes.ALL.size, e.walls.size)
+        assertEquals("서바이벌 튜토리얼은 벽 8개", 8, e.walls.size)
         e.walls.forEachIndexed { i, w ->
             if (i == 4) {
                 assertEquals("일부러 가만히 선 벽", Grade.MISS, w.grade)

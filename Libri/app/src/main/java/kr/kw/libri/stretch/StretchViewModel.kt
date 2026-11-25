@@ -47,6 +47,9 @@ class StretchViewModel : ViewModel() {
         private set
     var popup by mutableStateOf<GradePopup?>(null)
         private set
+    /** 남은 하트 (하트가 있는 코스만) */
+    var lives by mutableIntStateOf(0)
+        private set
 
     private val sfx = StretchSfx()
     private var lastNanos = 0L
@@ -64,6 +67,7 @@ class StretchViewModel : ViewModel() {
         judgedCount = 0
         tracked = false
         popup = null
+        lives = course.lives
     }
 
     fun quit() {
@@ -95,6 +99,7 @@ class StretchViewModel : ViewModel() {
         countdown = ceil(e.countdownMs / 1000f).toInt()
         targetIndex = e.targetIndex
         tracked = s.tracked
+        lives = e.lives
         frame++
     }
 

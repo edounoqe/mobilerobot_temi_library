@@ -63,6 +63,8 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.face.detection)
+    // 네컷 사진: Exif 회전정보를 API 23에서도 안정적으로 읽기 위한 라이브러리
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation(libs.mlkit.pose.detection)
     implementation(libs.temi.sdk)
 

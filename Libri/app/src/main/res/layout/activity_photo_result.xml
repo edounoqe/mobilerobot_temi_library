@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/libri_paper"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="20dp">
+
+        <!-- Header Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_sketch_card"
+            android:elevation="4dp"
+            android:padding="20dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:text="사진이 완성되었습니다!"
+                android:textColor="@color/libri_ink"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 1200 x 3600 px (1:3) 합성 결과. 사진+프레임은 FrameComposer 가 한 장의 비트맵으로 합쳐서 보여준다. -->
+        <FrameLayout
+            android:id="@+id/framePreviewContainer"
+            android:layout_width="200dp"
+            android:layout_height="600dp"
+            android:background="#FFFFFF"
+            android:elevation="6dp"
+            android:layout_marginBottom="28dp">
+
+            <ImageView
+                android:id="@+id/imgResultComposite"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitXY"
+                android:contentDescription="사진과 프레임이 합성된 1200x3600 결과물" />
+        </FrameLayout>
+
+        <!-- QR Code Placeholder Box for Backend Integration -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/bg_sketch_card"
+            android:elevation="4dp"
+            android:padding="20dp"
+            android:layout_marginBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="QR 코드 스캔 및 다운로드"
+                android:textColor="@color/libri_stamp"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Mock QR Graphic Box -->
+            <LinearLayout
+                android:id="@+id/qrCodeContainer"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_frame_box"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:id="@+id/txtQrPlaceholder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="[ QR CODE ]\n1200×3600px 완성본\nSupabase DB &amp; Storage 링크"
+                    android:textColor="@color/libri_ink"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:gravity="center" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="스마트폰 카메라로 QR 코드를 스캔하면 고화질 사진을 바로 저장할 수 있습니다."
+                android:textColor="@color/libri_pencil"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:lineSpacingExtra="2dp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Bottom Actions Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp">
+
+            <Button
+                android:id="@+id/btnReShoot"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="다시 촬영하기"
+                android:textSize="14sp"
+                android:textColor="@color/libri_ink"
+                android:textStyle="bold"
+                android:background="@drawable/bg_btn_libri_secondary"
+                android:stateListAnimator="@null"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnHome"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="홈으로"
+                android:textSize="14sp"
+                android:textColor="@color/libri_ink"
+                android:textStyle="bold"
+                android:background="@drawable/bg_btn_libri_primary"
+                android:stateListAnimator="@null"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

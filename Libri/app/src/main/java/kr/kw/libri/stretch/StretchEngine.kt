@@ -4,6 +4,7 @@ import kotlin.math.ceil
 import kotlin.math.exp
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 enum class Phase { READY, COUNTDOWN, PLAYING, RESULT }
 
@@ -37,7 +38,12 @@ class StretchResult(
     val miss: Int,
     val maxCombo: Int,
     val stars: Int,
-)
+    /** 하트를 다 잃어 끝났는지 */
+    val gameOver: Boolean = false,
+) {
+    /** 통과한 벽 수 */
+    val passed: Int get() = perfect + good
+}
 
 /**
  * 게임 진행 — 화면·카메라와 무관한 순수 로직.
@@ -45,7 +51,17 @@ class StretchResult(
  * 아바타는 도서관 통로를 일정한 속도로 나아가고, 벽은 통로 위 정해진 위치에 서 있다.
  * 벽에 닿는 순간(distance >= wall.at) 직전의 자세로 통과 여부를 판정한다.
  */
-class StretchEngine(val course: StretchCourse) {
+/**
+ * @param maxWalls 서바이벌에서 벽을 최대 몇 개까지 낼지 (튜토리얼은 끝이 있어야 하므로 제한한다)
+ * @param rnd      서바이벌 벽 순서를 고르는 난수 (테스트는 시드를 준다)
+ * @param sequential 서바이벌이어도 course.poses 순서대로 낸다 (튜토리얼 — 늘 같은 순서로 보여 준다)
+ */
+class StretchEngine(
+    val course: StretchCourse,
+    private val maxWalls: Int = Int.MAX_VALUE,
+    private val rnd: Random = Random.Default,
+    private val sequential: Boolean = false,
+) {
 
     var phase = Phase.READY
         private set
@@ -89,6 +105,11 @@ class StretchEngine(val course: StretchCourse) {
 
     var result: StretchResult? = null
         private set
+
+    /** 남은 하트 (course.lives 가 0 이면 쓰지 않는다) */
+    var lives = course.lives
+        private set
+    private var gameOver = false
 
     private var speedFactor = 1f
     private var snapHoldUntilMs = -1f
@@ -150,10 +171,16 @@ class StretchEngine(val course: StretchCourse) {
     private fun begin() {
         phase = Phase.PLAYING
         walls.clear()
-        var at = distance
-        course.poses.forEachIndexed { i, pose ->
-            at += SPEED * course.intervalMs(i) / 1000f
-            walls += Wall(i, pose, at)
+        lives = course.lives
+        gameOver = false
+        if (course.endless) {
+            addWalls(AHEAD)
+        } else {
+            var at = distance
+            course.poses.forEachIndexed { i, pose ->
+                at += SPEED * course.intervalMs(i) / 1000f
+                walls += Wall(i, pose, at)
+            }
         }
         targetIndex = 0
         judgeFit = 0f
@@ -199,6 +226,10 @@ class StretchEngine(val course: StretchCourse) {
         if (grade == Grade.MISS) {
             combo = 0
             speedFactor = STUMBLE_SPEED       // 부딪혀 잠깐 주춤
+            if (course.lives > 0) {
+                lives = (lives - 1).coerceAtLeast(0)
+                if (lives == 0) gameOver = true
+            }
         } else {
             combo++
             maxCombo = maxOf(maxCombo, combo)
@@ -217,9 +248,27 @@ class StretchEngine(val course: StretchCourse) {
 
         targetIndex++
         judgeFit = 0f
+        if (gameOver) {
+            // 하트를 다 잃었다 — 앞에 남은 벽은 치우고 결과로
+            if (targetIndex < walls.size) walls.subList(targetIndex, walls.size).clear()
+        } else if (course.endless) {
+            addWalls(targetIndex + AHEAD - walls.size)
+        }
         if (targetIndex >= walls.size) {
             targetIndex = -1
             finishAtMs = timeMs + RESULT_DELAY_MS
+        }
+    }
+
+    /** 서바이벌 — 벽을 count 개 더 세운다 (최대 maxWalls 개까지) */
+    private fun addWalls(count: Int) {
+        repeat(count) {
+            val i = walls.size
+            if (i >= maxWalls) return
+            val last = walls.lastOrNull()
+            val at = (last?.at ?: distance) + SPEED * course.intervalMs(i) / 1000f
+            val pose = if (sequential) course.poses[i % course.poses.size] else course.poseAt(i, last?.pose, rnd)
+            walls += Wall(i, pose, at)
         }
     }
 
@@ -245,12 +294,19 @@ class StretchEngine(val course: StretchCourse) {
         val good = walls.count { it.grade == Grade.GOOD }
         val miss = walls.count { it.grade == Grade.MISS }
         val ratio = if (walls.isEmpty()) 0f else (perfect * 100f + good * 60f) / (walls.size * 100f)
-        val stars = when {
+        val stars = if (course.endless) {
+            // 서바이벌은 몇 개나 버텼는지로 — 뒤로 갈수록 빠르고 어려워진다
+            when {
+                perfect + good >= SURVIVE_3 -> 3
+                perfect + good >= SURVIVE_2 -> 2
+                else -> 1
+            }
+        } else when {
             ratio >= 0.85f -> 3
             ratio >= 0.5f -> 2
             else -> 1
         }
-        result = StretchResult(score, perfect, good, miss, maxCombo, stars)
+        result = StretchResult(score, perfect, good, miss, maxCombo, stars, gameOver = gameOver)
         events += StretchEvent.Finished
     }
 
@@ -266,6 +322,10 @@ class StretchEngine(val course: StretchCourse) {
         const val COMBO_STEP = 0.1f
         const val COMBO_CAP = 5
         const val RESULT_DELAY_MS = 1900f
+        /** 서바이벌 — 앞에 미리 세워 둘 벽 수 */
+        const val AHEAD = 4
+        const val SURVIVE_2 = 8
+        const val SURVIVE_3 = 16
         private const val STUMBLE_SPEED = 0.2f
         private const val STUMBLE_RECOVER_MS = 380f
         private const val SNAP_MAX = 0.85f

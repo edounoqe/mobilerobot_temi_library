@@ -54,6 +54,7 @@ import kr.kw.libri.backend.InviteMatch
 import kr.kw.libri.common.MultiplayerPanel
 import kr.kw.libri.common.FaceDetectionView
 import kr.kw.libri.common.HandDoodle
+import kr.kw.libri.common.HeartBar
 import kr.kw.libri.common.HoldIdleTimer
 import kr.kw.libri.common.LibriButton
 import kr.kw.libri.common.LibriButtonStyle
@@ -155,6 +156,10 @@ private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier,
                 LibriStep(3, "같은 쪽을 보면 수비자 하트 -1, 반대쪽이면 공격권이 넘어가요")
                 LibriStep(4, "하트 ${CHAM_MAX_HP}개를 먼저 모두 잃으면 져요")
             }
+            NoteText(
+                "카메라는 내 고개 방향만 읽어요. 내 얼굴은 상대 화면에 보이지 않고, 저장하지도 않아요.",
+                size = 18.sp, color = LibriColors.Pencil,
+            )
         },
     ) {
         LibriLabel("누구와 할까요?")
@@ -297,7 +302,7 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                     } else {
                         StatusCard(
                             at, "상대가 공격할 차례", turn = turn,
-                            sub = "상대가 방향을 고르는 중이에요.\n\"참!\" 에 손과 반대쪽으로 고개를 돌려 피하세요",
+                            sub = "상대가 방향을 고르는 중이에요.\n\"참!\" 에 손과 반대쪽으로 고개를 돌려 피하세요\n(카메라 화면은 나만 보여요)",
                         )
                     }
                     shown.result != null -> {
@@ -364,7 +369,7 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    HeartBar(room.hp(me), heartSize = 46.dp)
+                    HeartBar(room.hp(me), max = CHAM_MAX_HP, heartSize = 46.dp)
                     LibriTag("내 하트", me.color(), fontSize = 14.sp)
                 }
             }
@@ -451,7 +456,7 @@ private fun SeatHp(seat: Seat, hp: Int, me: Seat, attacker: Seat, wide: Boolean)
             if (seat == me) "${seat.name} 나" else seat.name,
             fontSize = 16.sp, fontFamily = LibriFonts.Round, color = LibriColors.Pencil,
         )
-        HeartBar(hp, Modifier.padding(vertical = 6.dp), heartSize = if (wide) 22.dp else 18.dp)
+        HeartBar(hp, Modifier.padding(vertical = 6.dp), max = CHAM_MAX_HP, heartSize = if (wide) 22.dp else 18.dp)
         if (attacking && wide) Text("공격", fontSize = 15.sp, fontFamily = LibriFonts.Round, color = LibriColors.Ink)
     }
 }
@@ -566,6 +571,12 @@ private fun Mirror(
                         HeadDir.CENTER -> "내 고개  정면"
                     },
                     size = 21.sp, color = if (look == null) LibriColors.Stamp else LibriColors.Ink,
+                )
+                // 내 얼굴이 상대에게 보인다고 오해하고 부담스러워 나가지 않게 — 카메라 영상은 이 기기에서 고개 방향만 읽는다
+                Text(
+                    "나만 보는 거울이에요 · 상대에게 안 보여요",
+                    fontSize = 13.sp, color = LibriColors.Pencil, textAlign = TextAlign.Center,
+                    modifier = Modifier.width(if (wide) 236.dp else 138.dp),
                 )
             }
         }

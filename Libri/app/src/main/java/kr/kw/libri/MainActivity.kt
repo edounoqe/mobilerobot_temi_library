@@ -53,6 +53,8 @@ import kr.kw.libri.backend.InviteMatch
 import kr.kw.libri.backend.LocalGameInvites
 import kr.kw.libri.backend.SERVICE_PLAYING
 import kr.kw.libri.common.IncomingInviteDialog
+import kr.kw.libri.photobooth.SupabaseManager
+import kr.kw.libri.common.InviteNoticeDialog
 import kr.kw.libri.common.IdleGuard
 import kr.kw.libri.backend.FeedbackScreen
 import kr.kw.libri.backend.LibriBackend
@@ -193,6 +195,14 @@ class MainActivity : ComponentActivity(),
 
                     LaunchedEffect(service, presence) { presence?.update(service) }
 
+                    // 네컷 사진은 1시간만 보관 — 앱이 켜져 있는 동안 10분마다 지난 사진을 Supabase 에서 지운다
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            SupabaseManager.cleanupExpiredPhotos()
+                            delay(10 * 60 * 1000L)
+                        }
+                    }
+
                     // 게임 신청 — 승인된 로봇이면 다른 기기의 신청을 듣고, 수락되면 그 게임으로 데려간다
                     val invites = remember(identity, authorized) {
                         identity?.takeIf { authorized }?.let { me ->
@@ -285,6 +295,8 @@ class MainActivity : ComponentActivity(),
                         if (invites != null && screen != Screen.ROBOT_SETTINGS && !IdleGuard.held) {
                             IncomingInviteDialog(invites)
                         }
+                        // 내가 보낸 신청이 거절되거나 응답이 없을 때
+                        if (invites != null) InviteNoticeDialog(invites)
                     }
                     }
                 }

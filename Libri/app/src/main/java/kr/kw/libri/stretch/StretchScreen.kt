@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kr.kw.libri.common.HeartBar
 import kr.kw.libri.common.HoldIdleTimer
 import kr.kw.libri.common.LibriButton
 import kr.kw.libri.common.LibriButtonStyle
@@ -324,6 +325,8 @@ private fun TopBar(vm: StretchViewModel, s: StretchSession, modifier: Modifier) 
                 if (vm.combo >= 2) NoteText("${vm.combo}연속 통과!", size = 21.sp, color = LibriColors.Stamp)
             }
         }
+        // 서바이벌 — 남은 하트. 벽에 부딪힐 때마다 하나씩 줄고, 다 잃으면 끝
+        if (s.course.lives > 0) HeartBar(vm.lives, max = s.course.lives, heartSize = 30.dp)
         SoundToggle(vm.soundOn, { vm.toggleSound() })
     }
 }
@@ -522,7 +525,14 @@ private fun ResultCard(vm: StretchViewModel, s: StretchSession, r: StretchResult
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        TitleText(if (s.demo) "튜토리얼 끝!" else "스트레칭 완료!", size = 32.sp)
+        TitleText(
+            when {
+                s.demo -> "튜토리얼 끝!"
+                r.gameOver -> "하트를 다 썼어요!"
+                else -> "스트레칭 완료!"
+            },
+            size = 32.sp,
+        )
         Stars(r.stars)
         Text("%,d점".format(r.score), fontSize = 50.sp, fontFamily = LibriFonts.Round, color = LibriColors.Ink)
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -530,10 +540,15 @@ private fun ResultCard(vm: StretchViewModel, s: StretchSession, r: StretchResult
             Tally("좋아요", r.good, LibriColors.Amber)
             Tally("쿵", r.miss, FIT_OFF)
         }
-        Text("최다 ${r.maxCombo}연속 통과", color = LibriColors.Pencil, fontSize = 15.sp)
+        Text(
+            if (s.course.endless) "벽 ${r.passed}개 통과 · 최다 ${r.maxCombo}연속" else "최다 ${r.maxCombo}연속 통과",
+            color = LibriColors.Pencil, fontSize = 15.sp,
+        )
         NoteText(
             when {
                 s.demo -> "이제 직접 해 볼까요?"
+                s.course.endless && r.stars == 3 -> "끝까지 버텼어요. 대단해요!"
+                s.course.endless -> "벽이 점점 빨라져요. 한 번 더 도전!"
                 r.stars == 3 -> "몸이 활짝 펴졌어요. 훌륭해요!"
                 r.stars == 2 -> "잘했어요! 한결 가벼워졌죠?"
                 else -> "천천히 한 번 더 해 보면 금방 늘어요"

@@ -1,4 +1,4 @@
-package kr.kw.libri.chamchamcham
+package kr.kw.libri.common
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.keyframes
@@ -74,7 +74,7 @@ fun PixelHeart(full: Boolean, modifier: Modifier = Modifier, size: Dp = 32.dp) {
  * 하트가 줄어들면 줄 전체가 좌우로 흔들린다.
  */
 @Composable
-fun HeartBar(hp: Int, modifier: Modifier = Modifier, max: Int = CHAM_MAX_HP, heartSize: Dp = 32.dp) {
+fun HeartBar(hp: Int, modifier: Modifier = Modifier, max: Int = 3, heartSize: Dp = 32.dp) {
     val shake = remember { Animatable(0f) }
     var last by remember { mutableIntStateOf(hp) }
     LaunchedEffect(hp) {

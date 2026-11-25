@@ -95,6 +95,9 @@ class GameInvites(context: Context, val me: RobotIdentity, private val onMatch: 
     /** 마지막 결과 안내 ("거절했어요" 등). 화면이 보여 주고 clearMessage 로 지운다 */
     var message by mutableStateOf<String?>(null)
         private set
+    /** 내 신청이 거절되거나 응답이 없었을 때 띄울 팝업 (제목, 설명). 확인을 누르면 dismissNotice */
+    var notice by mutableStateOf<Pair<String, String>?>(null)
+        private set
 
     private var offset = 0L
     fun now(): Long = System.currentTimeMillis() + offset
@@ -164,7 +167,7 @@ class GameInvites(context: Context, val me: RobotIdentity, private val onMatch: 
         if (inv == null || inv.room != out.room) return
         when (inv.status) {
             "accepted" -> { outgoing = null; onMatch(InviteMatch(inv.game, inv.room, asHost = true)) }
-            "rejected" -> { outgoing = null; message = "${floorLabel(inv.to)}이(가) 신청을 거절했어요." }
+            "rejected" -> { outgoing = null; notice = "대결 신청이 거절됐어요" to "${floorLabel(inv.to)}이(가) ${inv.game.title} 대결을 거절했어요." }
             "cancelled" -> { outgoing = null }
         }
     }
@@ -174,7 +177,7 @@ class GameInvites(context: Context, val me: RobotIdentity, private val onMatch: 
         val out = outgoing ?: return
         if (now - out.createdAt >= PAIRING_TIMEOUT_MS + 3_000L) {
             outgoing = null
-            message = "${floorLabel(out.to)}이(가) 응답하지 않았어요."
+            notice = "응답이 없어요" to "${floorLabel(out.to)}이(가) ${out.game.title} 대결 신청에 답하지 않았어요."
         }
     }
 
@@ -219,6 +222,8 @@ class GameInvites(context: Context, val me: RobotIdentity, private val onMatch: 
     }
 
     fun clearMessage() { message = null }
+
+    fun dismissNotice() { notice = null }
 
     private companion object { const val TAG = "GameInvites" }
 }
