@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Libri 참참참</string>
+    <string name="app_name">Libri</string>
     <string name="firebase_realtime_database_url" translatable="false">https://mobilerobot-temi-library-default-rtdb.asia-southeast1.firebasedatabase.app/</string>
     <string name="supabase_project_url" translatable="false">https://oojkigtwasjigzlmsqas.supabase.co</string>
     <string name="supabase_publishable_key" translatable="false">sb_publishable_OfTOFNmrb-dIcp7uNqHCiA_rPPwWpkJ</string>

@@ -13,7 +13,7 @@
         "floor": { ".validate": "newData.isString()" },
         "online": { ".validate": "newData.val() === true" },
         "busy": { ".validate": "newData.isBoolean()" },
-        "currentService": { ".validate": "newData.val().matches(/^(idle|photo|cham_lobby|chamchamcham|eye_work|stretch|feedback|settings)$/)" },
+        "currentService": { ".validate": "newData.val().matches(/^(idle|photo|cham_lobby|chamchamcham|eye_work|omok|stretch|feedback|settings)$/)" },
         "updatedAt": { ".validate": "newData.val() === now" },
         "$other": { ".validate": false }
       }
@@ -31,6 +31,14 @@
         "createdAt": { ".validate": "newData.isNumber()" },
         "respondedAt": { ".validate": "newData.isNumber()" },
         "$other": { ".validate": false }
+      }
+    },
+    "omok": {
+      "rooms": {
+        "$room": {
+          ".read": "auth != null && (root.child('robotAccess').child(auth.uid).val() === 'temi_L' || root.child('robotAccess').child(auth.uid).val() === 'temi_1')",
+          ".write": "auth != null && (root.child('robotAccess').child(auth.uid).val() === 'temi_L' || root.child('robotAccess').child(auth.uid).val() === 'temi_1')"
+        }
       }
     },
     "rooms": {

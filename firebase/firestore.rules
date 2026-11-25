@@ -9,7 +9,24 @@ service cloud.firestore {
     }
 
     function validService(feature) {
-      return feature in ['chamchamcham', 'eye_work', 'photo', 'stretch'];
+      return feature in ['chamchamcham', 'eye_work', 'omok', 'photo', 'stretch'];
+    }
+
+    function approvedRobot() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/robotAccess/$(request.auth.uid)).data.robotId in ['temi_L', 'temi_1'];
+    }
+
+    match /omok_ranking/{id} {
+      allow read: if approvedRobot();
+      allow create, update: if approvedRobot()
+        && request.resource.data.keys().hasOnly(['name', 'win', 'lose', 'draw', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.win is int && request.resource.data.win >= 0
+        && request.resource.data.lose is int && request.resource.data.lose >= 0
+        && request.resource.data.draw is int && request.resource.data.draw >= 0
+        && request.resource.data.updatedAt == request.time;
     }
 
     match /feedback/{id} {

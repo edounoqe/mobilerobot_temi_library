@@ -5,6 +5,9 @@ import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.face.Face
@@ -45,6 +48,19 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
     val online: StateFlow<Boolean> = _online.asStateFlow()
 
     private val sound = ChamSound(app)
+
+    /** "참" 소리 — 도서관이라 끌 수 있다 (꺼도 화면의 손·글자·박자 표시는 그대로) */
+    var soundOn by mutableStateOf(true)
+        private set
+
+    fun toggleSound() {
+        soundOn = !soundOn
+    }
+
+    /** 다음 사람을 위해 — 앞 사람이 바꾼 설정(소리 끄기)을 되돌린다 */
+    fun resetForNextVisitor() {
+        soundOn = true
+    }
 
     /** 두 기기가 같은 기준으로 쓰는 시각 (Firebase 서버 시각) */
     fun now(): Long = server?.serverNow() ?: System.currentTimeMillis()
@@ -152,7 +168,7 @@ class ChamViewModel(app: Application) : AndroidViewModel(app) {
             val key = "${r.id}-$beat"
             if (key != spokenKey) {
                 spokenKey = key
-                sound.cham(final = beat == 2)
+                if (soundOn) sound.cham(final = beat == 2)
             }
         }
 
