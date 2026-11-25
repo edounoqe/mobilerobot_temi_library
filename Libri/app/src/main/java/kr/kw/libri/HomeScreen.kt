@@ -66,7 +66,7 @@ private val FEATURES = listOf(
 
 /** 홈 — 기능 선택 메뉴. 각 카드가 해당 Screen 으로 이동한다 */
 @Composable
-fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier, onRobotSettings: () -> Unit) {
     LibriScreen(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val big = maxWidth >= 720.dp            // temi 처럼 넓은 화면 — 두 줄로 크게 (멀리서도 누르기 쉽게)
@@ -90,6 +90,7 @@ fun HomeScreen(onSelect: (Screen) -> Unit, modifier: Modifier = Modifier) {
                             for (f in row) FeatureCard(f, big, Modifier.weight(1f)) { onSelect(f.screen) }
                         }
                     }
+                    androidx.compose.material3.OutlinedButton(onClick = onRobotSettings) { Text("로봇 설정") }
                     // 책의 쪽 번호
                     Text(
                         "— 1 —", color = LibriColors.Faint, fontSize = 14.sp, fontFamily = FontFamily.Serif,

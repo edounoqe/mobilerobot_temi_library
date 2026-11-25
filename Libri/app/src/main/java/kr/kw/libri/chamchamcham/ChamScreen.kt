@@ -46,6 +46,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleStartEffect
+import kr.kw.libri.backend.RobotIdentity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
@@ -78,16 +80,20 @@ private fun Seat.color(): Color = if (this == Seat.A) LibriColors.Coral else Lib
 @Composable
 fun ChamScreen(
     onExit: () -> Unit,
+    identity: RobotIdentity?,
+    authorized: Boolean,
+    onPairingAvailability: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     vm: ChamViewModel = viewModel(),
 ) {
+    LifecycleStartEffect(vm) { onStopOrDispose { vm.leaveOnlineRoom() } }
     val seat by vm.seat.collectAsStateWithLifecycle()
     val me = seat
     // 사람이 떠나 얼굴 화면으로 돌아가는 등 화면이 바뀌면 방을 비운다 (온라인 자리가 잠긴 채 남지 않게)
     LeaveOnDispose { vm.leave(); vm.resetForNextVisitor() }
     if (me == null) {
         BackHandler(onBack = onExit)
-        ChamLobby(vm, onExit, modifier)
+        ChamLobby(vm, onExit, modifier, identity, authorized, onPairingAvailability)
     } else {
         BackHandler { vm.leave() }
         ChamGame(vm, me, modifier)
@@ -97,10 +103,12 @@ fun ChamScreen(
 // ───────── 대기실 ─────────
 
 @Composable
-private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier) {
+private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier, identity: RobotIdentity?, authorized: Boolean, onPairingAvailability: (Boolean) -> Unit) {
     var code by rememberSaveable { mutableStateOf("temi") }
     // 대부분은 혼자 온다 — 기본은 혼자 연습
-    var online by rememberSaveable { mutableStateOf(false) }
+    var selectedOnline by rememberSaveable { mutableStateOf(false) }
+    val online = selectedOnline && authorized && vm.onlineAvailable
+    val roomStatus by vm.roomStatus.collectAsStateWithLifecycle()
 
     // 수비할 때 카메라가 필요하다 — 게임 도중이 아니라 입장할 때 미리 묻는다 (거절해도 입장은 된다)
     var pendingSeat by rememberSaveable { mutableStateOf<Seat?>(null) }
@@ -134,17 +142,20 @@ private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier)
         LibriLabel("누구와 할까요?")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             LibriButton(
-                "혼자 연습", { online = false }, Modifier.weight(1f),
+                "혼자 연습", { selectedOnline = false }, Modifier.weight(1f),
                 style = if (!online) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
                 minHeight = 68.dp, sub = "봇과 대결",
             )
             LibriButton(
-                "기기 2대로 대결", { online = true }, Modifier.weight(1f),
+                "기기 2대로 대결", { selectedOnline = true }, Modifier.weight(1f),
                 style = if (online) LibriButtonStyle.COLOR else LibriButtonStyle.FLAT,
-                enabled = vm.onlineAvailable, minHeight = 68.dp, sub = if (vm.onlineAvailable) "온라인" else "지금은 쓸 수 없어요",
+                enabled = authorized && vm.onlineAvailable, minHeight = 68.dp, sub = if (authorized && vm.onlineAvailable) "온라인" else "지금은 쓸 수 없어요",
             )
         }
+        if (!authorized) Text("온라인 대결에는 로봇 설정에서 Firebase 승인이 필요해요.")
+        if (roomStatus == OnlineRoomStatus.FAILED) Text("게임방을 열지 못했어요. 다시 시도해 주세요.")
         if (online) {
+            if (identity != null) ChamPairing(identity, onPairingAvailability) { room, seat -> vm.join(room, seat, true) }
             OutlinedTextField(
                 value = code,
                 onValueChange = { code = it.trim() },
@@ -181,6 +192,8 @@ private fun ChamLobby(vm: ChamViewModel, onExit: () -> Unit, modifier: Modifier)
 private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
     val room by vm.room.collectAsStateWithLifecycle()
     val online by vm.online.collectAsStateWithLifecycle()
+    val roomStatus by vm.roomStatus.collectAsStateWithLifecycle()
+    val playable = !online || roomStatus == OnlineRoomStatus.READY
     val soundOn = vm.soundOn
     val now by produceState(vm.now(), vm) {
         while (true) {
@@ -191,13 +204,15 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
 
     val r = room.round
     // 결과까지 보여 주는 동안은 그 라운드 기준으로, 끝나면 다음 공격자 기준으로 화면을 그린다
-    val shown = r?.takeIf { it.result == null || now < it.startAt + JUDGE_END + RESULT_SHOW_MS }
+    val shown = r?.takeIf { playable && (it.result == null || now < it.startAt + JUDGE_END + RESULT_SHOW_MS) }
     val attackerSeat = shown?.attacker ?: room.attacker
     val iAttack = attackerSeat == me
     val t = shown?.let { now - it.startAt }
     val pose = handPose(t, shown?.dir)
     val opponentHere = if (me == Seat.A) room.joinedB else room.joinedA
-    val canPick = iAttack && shown == null && opponentHere
+    var opponentWasHere by remember { mutableStateOf(false) }
+    LaunchedEffect(opponentHere) { if (opponentHere) opponentWasHere = true }
+    val canPick = playable && iAttack && shown == null && opponentHere
 
     // 수비 중 카메라에 비친 내 고개 방향 — 화면 안내용 (판정은 ViewModel 이 한다). null = 얼굴이 안 보임
     var myLook by remember { mutableStateOf<HeadDir?>(null) }
@@ -264,6 +279,15 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
             // 상태 안내 — 지금 무엇을 해야 하는지
             val status: @Composable (Modifier) -> Unit = { at ->
                 when {
+                    !playable -> StatusCard(at, when (roomStatus) {
+                        OnlineRoomStatus.PERMISSION_DENIED -> "게임방 접근 권한이 없어요"
+                        OnlineRoomStatus.SEAT_TAKEN -> "이미 사용 중인 자리예요"
+                        OnlineRoomStatus.DISCONNECTED -> "연결이 끊겼어요"
+                        OnlineRoomStatus.TIMED_OUT -> "입장 응답이 늦어요"
+                        OnlineRoomStatus.FAILED -> "게임을 동기화하지 못했어요"
+                        else -> "온라인 게임방에 연결하는 중…"
+                    }, sub = if (roomStatus == OnlineRoomStatus.CONNECTING) "" else "나간 뒤 다시 입장해 주세요")
+                    !opponentHere && opponentWasHere -> StatusCard(at, "상대가 나갔어요", sub = "다시 입장하면 대결을 계속할 수 있어요")
                     !opponentHere -> StatusCard(
                         at, "상대를 기다리는 중…", sub = "다른 기기에서 같은 방 코드로 입장해 주세요",
                     )
@@ -315,7 +339,7 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                     status(Modifier.align(Alignment.TopEnd).padding(top = 92.dp, end = 20.dp).width(360.dp))
                 } else {
                     status(Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 24.dp).width(360.dp))
-                    mirror(Modifier.align(Alignment.BottomStart).padding(start = 28.dp, bottom = 24.dp))
+                    if (playable && opponentHere) mirror(Modifier.align(Alignment.BottomStart).padding(start = 28.dp, bottom = 24.dp))
                 }
             } else if (iAttack) {
                 // 세로 화면, 공격: 안내는 위, 내 손은 아래에서 올라온다
@@ -328,7 +352,7 @@ private fun ChamGame(vm: ChamViewModel, me: Seat, modifier: Modifier) {
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     status(Modifier.fillMaxWidth())
-                    mirror(Modifier)
+                    if (playable && opponentHere) mirror(Modifier)
                 }
             }
 

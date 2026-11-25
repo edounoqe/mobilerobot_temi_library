@@ -15,3 +15,8 @@ build/
 # macOS metadata
 .DS_Store
 **/.DS_Store
+
+# Firebase Emulator Suite logs
+firebase-debug*.log
+firestore-debug.log
+database-debug.log
